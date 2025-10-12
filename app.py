@@ -960,49 +960,59 @@ def conversion_worker_loop():
     with app.app_context():
         logger.info("Conversion worker: started (app context bound)")
         while True:
-            session = WorkerSession()  # Create fresh session for each iteration
             try:
-                # Get eligible jobs using the proper filter
-                jobs = _eligible_conversion_jobs(session)
-                
-                if not jobs:
-                    time.sleep(1)
-                    continue
-                
-                job = jobs[0]  # Take the first eligible job
-                
+                session = WorkerSession()
                 try:
-                    # Re-fetch an attached instance to ensure we work with a fresh, attached object
-                    job = session.get(ConversionJob, job.id)
+                    # Get eligible jobs using the proper filter
+                    jobs = _eligible_conversion_jobs(session)
                     
-                    # Enhanced worker logging
-                    conversion_logger.info(f"🔄 WORKER: Starting conversion job {job.id}")
-                    if job.recording_id:
-                        rec = session.get(Recording, job.recording_id)
-                        if rec:
-                            conversion_logger.info(f"🔄 WORKER: Job {job.id} converting recording {rec.id} ({rec.filename})")
+                    if not jobs:
+                        time.sleep(1)
+                        continue
                     
-                    _start_job(job, session)
+                    job = jobs[0]  # Take the first eligible job
+                    
                     try:
-                        _run_ffmpeg_conversion(job, session)
-                        _finalize_job(job, session, ok=True, done_text=f"Completed successfully")
-                        conversion_logger.info(f"✅ WORKER: Successfully completed conversion job {job.id}")
+                        # Re-fetch an attached instance to ensure we work with a fresh, attached object
+                        job = session.get(ConversionJob, job.id)
+                        
+                        # Enhanced worker logging
+                        conversion_logger.info(f"🔄 WORKER: Starting conversion job {job.id}")
+                        if job.recording_id:
+                            rec = session.get(Recording, job.recording_id)
+                            if rec:
+                                conversion_logger.info(f"🔄 WORKER: Job {job.id} converting recording {rec.id} ({rec.filename})")
+                        
+                        _start_job(job, session)
+                        try:
+                            _run_ffmpeg_conversion(job, session)
+                            _finalize_job(job, session, ok=True, done_text=f"Completed successfully")
+                            conversion_logger.info(f"✅ WORKER: Successfully completed conversion job {job.id}")
+                        except Exception as e:
+                            _update_job_progress(job, f"Error: {e}", session, force=True)
+                            _finalize_job(job, session, ok=False)
+                            conversion_logger.error(f"❌ WORKER: Job {job.id} failed with error: {e}")
+                            raise
                     except Exception as e:
-                        _update_job_progress(job, f"Error: {e}", session, force=True)
-                        _finalize_job(job, session, ok=False)
-                        conversion_logger.error(f"❌ WORKER: Job {job.id} failed with error: {e}")
-                        raise
-                except Exception as e:
-                    app.logger.exception(f"Error processing job {job.id}: {e}")
-                    conversion_logger.error(f"❌ WORKER: Critical error processing job {job.id}: {e}")
-                
+                        app.logger.exception(f"Error processing job {job.id}: {e}")
+                        conversion_logger.error(f"❌ WORKER: Critical error processing job {job.id}: {e}")
+                        # Rollback any uncommitted changes
+                        session.rollback()
+                    
+                finally:
+                    # Always clean up session for this iteration
+                    try:
+                        session.close()
+                    except Exception as se:
+                        logger.warning(f"Session close error: {se}")
+                    try:
+                        WorkerSession.remove()
+                    except Exception as re:
+                        logger.warning(f"Session remove error: {re}")
+                    
             except Exception as e:
                 app.logger.exception("Conversion worker loop error")
                 time.sleep(1)
-            finally:
-                # Clean up session for this iteration
-                session.close()
-                WorkerSession.remove()
 
 def get_recording_status(recording):
     """Determine the actual status of a recording based on file existence and extension"""
