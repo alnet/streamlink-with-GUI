@@ -2862,9 +2862,25 @@ def get_conversion_progress():
         )
         
         conversions = []
+        converted_path = get_converted_path()
+        
         for job in jobs.items:
             try:
                 recording = Recording.query.get(job.recording_id) if job.recording_id else None
+                
+                # Get file size if output file exists
+                file_size = None
+                file_size_display = '-'
+                if job.output_filename:
+                    output_path = os.path.join(converted_path, job.output_filename)
+                    if os.path.exists(output_path):
+                        file_size = os.path.getsize(output_path)
+                        # Format file size
+                        if file_size < 1024 * 1024 * 1024:  # Less than 1GB
+                            file_size_display = f"{file_size / (1024 * 1024):.1f} MB"
+                        else:  # 1GB or more
+                            file_size_display = f"{file_size / (1024 * 1024 * 1024):.2f} GB"
+                
                 conversions.append({
                     'job_id': job.id,
                     'recording_id': job.recording_id,
@@ -2872,6 +2888,8 @@ def get_conversion_progress():
                     'status': job.status,
                     'progress': job.progress,
                     'output_filename': job.output_filename,
+                    'file_size': file_size,
+                    'file_size_display': file_size_display,
                     'schedule_type': job.schedule_type,
                     'scheduled_at': job.scheduled_at.isoformat() + 'Z' if job.scheduled_at else None,
                     'started_at': job.started_at.isoformat() + 'Z' if job.started_at else None,

@@ -156,42 +156,49 @@
              max-width: 80px;
          }
          
-         .conversion-progress-table th:nth-child(3), /* Status */
-         .conversion-progress-table td:nth-child(3) {
-             width: 10%;
-             max-width: 100px;
-         }
-         
-         .conversion-progress-table th:nth-child(4), /* Progress */
-         .conversion-progress-table td:nth-child(4) {
-             width: 25%;
-             max-width: 250px;
-             white-space: nowrap;
-             overflow: hidden;
-             text-overflow: ellipsis;
-         }
-         
-         .conversion-progress-table th:nth-child(5), /* Schedule Type */
-         .conversion-progress-table td:nth-child(5) {
-             width: 12%;
-             max-width: 120px;
-         }
-         
-         .conversion-progress-table th:nth-child(6), /* Output File */
-         .conversion-progress-table td:nth-child(6) {
-             width: 20%;
-             max-width: 200px;
-             white-space: nowrap;
-             overflow: hidden;
-             text-overflow: ellipsis;
-         }
-         
-         .conversion-progress-table th:nth-child(7), /* Actions */
-         .conversion-progress-table td:nth-child(7) {
-             width: 8%;
-             max-width: 80px;
-             text-align: center;
-         }
+        .conversion-progress-table th:nth-child(3), /* Status */
+        .conversion-progress-table td:nth-child(3) {
+            width: 10%;
+            max-width: 100px;
+        }
+        
+        .conversion-progress-table th:nth-child(4), /* Progress */
+        .conversion-progress-table td:nth-child(4) {
+            width: 22%;
+            max-width: 220px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .conversion-progress-table th:nth-child(5), /* File Size */
+        .conversion-progress-table td:nth-child(5) {
+            width: 10%;
+            max-width: 100px;
+            white-space: nowrap;
+        }
+        
+        .conversion-progress-table th:nth-child(6), /* Schedule Type */
+        .conversion-progress-table td:nth-child(6) {
+            width: 10%;
+            max-width: 100px;
+        }
+        
+        .conversion-progress-table th:nth-child(7), /* Output File */
+        .conversion-progress-table td:nth-child(7) {
+            width: 18%;
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .conversion-progress-table th:nth-child(8), /* Actions */
+        .conversion-progress-table td:nth-child(8) {
+            width: 8%;
+            max-width: 80px;
+            text-align: center;
+        }
          
          /* Stats cards - clean, functional design */
          .stats-card {
@@ -538,18 +545,36 @@
              border-color: #007bff;
          }
          
-         /* Background */
-         body {
-             background-color: #f8f9fa;
-         }
-         
-         .container-fluid {
-             background-color: #ffffff;
-             padding: 2rem;
-             border-radius: 0;
-             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-         }
-     </style>
+        /* Background */
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .container-fluid {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Prevent title wrapping and enable hover to see full text */
+        #recent-recordings-list td:nth-child(3),
+        #active-recordings-list td:nth-child(3) {
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Also prevent wrapping in modals */
+        #active-recordings-modal-table td:nth-child(3),
+        #recordings-for-conversion-modal-table td:nth-child(3) {
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
 </head>
 <body>
          <!-- Navigation -->
@@ -1040,44 +1065,48 @@
                             </div>
                         </div>
 
-                                                 <!-- Conversion Progress Section -->
-                         <div class="card">
-                             <div class="card-header d-flex justify-content-between align-items-center">
-                                 <h5 class="mb-0">
-                                     <i class="fas fa-tasks me-2"></i>Conversion Progress
-                                 </h5>
-                                 <div>
-                                     <button class="btn btn-sm btn-outline-primary me-2" onclick="showConversionProgressModal()">
-                                         View All
-                                     </button>
-                                     <button class="btn btn-sm btn-outline-primary" onclick="refreshConversionProgress()">
-                                         <i class="fas fa-sync-alt refresh-btn"></i> Refresh
-                                     </button>
-                                 </div>
-                             </div>
-                             <div class="card-body">
-                                 <div class="table-responsive">
-                                     <table class="table table-hover conversion-progress-table">
-                                         <thead>
-                                             <tr>
-                                                 <th>
-                                                     <input type="checkbox" id="select-all-conversions" onchange="toggleAllConversions()">
-                                                 </th>
-                                                 <th>Filename</th>
-                                                 <th>Status</th>
-                                                 <th>Progress</th>
-                                                 <th>Schedule Type</th>
-                                                 <th>Output File</th>
-                                                 <th>Actions</th>
-                                             </tr>
-                                         </thead>
-                                         <tbody id="conversion-progress-list">
-                                             <!-- Conversion progress will be shown here -->
-                                         </tbody>
-                                     </table>
-                                 </div>
-                             </div>
-                         </div>
+                                                <!-- Conversion Progress Section -->
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-tasks me-2"></i>Conversion Progress
+                                </h5>
+                                <div>
+                                    <button class="btn btn-sm btn-primary me-2" id="combine-videos-btn" onclick="combineSelectedVideos()" disabled>
+                                        <i class="fas fa-object-group me-1"></i>Combine Selected
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary me-2" onclick="showConversionProgressModal()">
+                                        View All
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="refreshConversionProgress()">
+                                        <i class="fas fa-sync-alt refresh-btn"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover conversion-progress-table">
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    <input type="checkbox" id="select-all-conversions" onchange="toggleAllConversions()">
+                                                </th>
+                                                <th>Filename</th>
+                                                <th>Status</th>
+                                                <th>Progress</th>
+                                                <th>File Size</th>
+                                                <th>Schedule Type</th>
+                                                <th>Output File</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="conversion-progress-list">
+                                            <!-- Conversion progress will be shown here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
 
                          <!-- Scheduled Tasks Display Section (Read-Only) -->
                          <div class="card mt-4">
@@ -1245,6 +1274,9 @@
                         <div class="modal-header">
                             <h5 class="modal-title">All Conversion Progress</h5>
                             <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-primary" id="combine-videos-modal-btn" onclick="combineSelectedVideosModal()" disabled>
+                                    <i class="fas fa-object-group me-1"></i>Combine Selected
+                                </button>
                                 <button class="btn btn-sm btn-outline-danger" id="bulk-delete-conversions-btn" onclick="bulkDeleteConversions()" disabled>
                                     <i class="fas fa-trash me-1"></i>Delete Selected
                                 </button>
@@ -1262,6 +1294,7 @@
                                             <th>Filename</th>
                                             <th>Status</th>
                                             <th>Progress</th>
+                                            <th>File Size</th>
                                             <th>Schedule Type</th>
                                             <th>Output File</th>
                                             <th>Actions</th>
@@ -1978,6 +2011,7 @@
             });
             
             updateBulkDeleteConversionsButton();
+            updateCombineButton();
         }
 
         // Toggle all conversions in modal
@@ -1990,6 +2024,7 @@
             });
             
             updateBulkDeleteConversionsModalButton();
+            updateCombineButtonModal();
         }
 
         // Update bulk delete conversions button state
@@ -2010,6 +2045,155 @@
             } else {
                 bulkDeleteBtn.disabled = true;
                 bulkDeleteBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete Selected';
+            }
+        }
+
+        // Update combine button state
+        function updateCombineButton() {
+            const checkboxes = document.querySelectorAll('.conversion-checkbox:checked');
+            const combineBtn = document.getElementById('combine-videos-btn');
+            
+            // Get the jobs data for selected checkboxes
+            const selectedJobs = Array.from(checkboxes).map(cb => {
+                const jobId = cb.value;
+                return window.currentConversionsData?.find(c => c.job_id == jobId);
+            }).filter(job => job && job.status === 'completed' && job.output_filename);
+            
+            // Enable button only if 2 or more completed videos are selected
+            if (selectedJobs.length >= 2) {
+                combineBtn.disabled = false;
+                combineBtn.innerHTML = `<i class="fas fa-object-group me-1"></i>Combine Selected (${selectedJobs.length})`;
+            } else {
+                combineBtn.disabled = true;
+                combineBtn.innerHTML = '<i class="fas fa-object-group me-1"></i>Combine Selected';
+            }
+        }
+
+        // Update combine button in modal
+        function updateCombineButtonModal() {
+            const checkboxes = document.querySelectorAll('.conversion-checkbox-modal:checked');
+            const combineBtn = document.getElementById('combine-videos-modal-btn');
+            
+            const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const selectedJobs = selectedIndices.map(index => window.currentConversionsData[index])
+                .filter(job => job && job.status === 'completed' && job.output_filename);
+            
+            if (selectedJobs.length >= 2) {
+                combineBtn.disabled = false;
+                combineBtn.innerHTML = `<i class="fas fa-object-group me-1"></i>Combine Selected (${selectedJobs.length})`;
+            } else {
+                combineBtn.disabled = true;
+                combineBtn.innerHTML = '<i class="fas fa-object-group me-1"></i>Combine Selected';
+            }
+        }
+
+        // Combine selected videos
+        async function combineSelectedVideos() {
+            const checkboxes = document.querySelectorAll('.conversion-checkbox:checked');
+            const jobIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            // Filter to only completed jobs with output files
+            const validJobIds = [];
+            for (const jobId of jobIds) {
+                const job = window.currentConversionsData?.find(c => c.job_id == jobId);
+                if (job && job.status === 'completed' && job.output_filename) {
+                    validJobIds.push(jobId);
+                }
+            }
+            
+            if (validJobIds.length < 2) {
+                alert('Please select at least 2 completed videos to combine');
+                return;
+            }
+            
+            // Prompt for output filename
+            const defaultName = prompt('Enter name for combined video (without .mp4 extension):', 'combined_stream');
+            if (!defaultName) return;
+            
+            try {
+                const response = await fetch('/api/concatenate-videos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        job_ids: validJobIds,
+                        output_filename: defaultName
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('Video concatenation started! Check conversion progress for status.');
+                    
+                    // Uncheck all checkboxes
+                    checkboxes.forEach(cb => cb.checked = false);
+                    document.getElementById('select-all-conversions').checked = false;
+                    updateCombineButton();
+                    updateBulkDeleteConversionsButton();
+                    
+                    // Refresh progress
+                    refreshConversionProgress();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.error);
+                }
+            } catch (error) {
+                console.error('Error combining videos:', error);
+                alert('Error combining videos');
+            }
+        }
+
+        // Combine selected videos from modal
+        async function combineSelectedVideosModal() {
+            const checkboxes = document.querySelectorAll('.conversion-checkbox-modal:checked');
+            const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            
+            const validJobIds = [];
+            for (const index of selectedIndices) {
+                const job = window.currentConversionsData[index];
+                if (job && job.status === 'completed' && job.output_filename) {
+                    validJobIds.push(job.job_id);
+                }
+            }
+            
+            if (validJobIds.length < 2) {
+                alert('Please select at least 2 completed videos to combine');
+                return;
+            }
+            
+            const defaultName = prompt('Enter name for combined video (without .mp4 extension):', 'combined_stream');
+            if (!defaultName) return;
+            
+            try {
+                const response = await fetch('/api/concatenate-videos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        job_ids: validJobIds,
+                        output_filename: defaultName
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Video concatenation started! Check conversion progress for status.');
+                    
+                    checkboxes.forEach(cb => cb.checked = false);
+                    document.getElementById('select-all-conversions-modal').checked = false;
+                    updateCombineButtonModal();
+                    updateBulkDeleteConversionsModalButton();
+                    
+                    loadConversionProgressModal(currentPage);
+                    refreshConversionProgress();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.error);
+                }
+            } catch (error) {
+                console.error('Error combining videos:', error);
+                alert('Error combining videos');
             }
         }
 
@@ -2203,11 +2387,12 @@
                         
                         row.innerHTML = `
                             <td>
-                                <input type="checkbox" class="conversion-checkbox-modal" value="${index}" onchange="updateBulkDeleteConversionsModalButton()">
+                                <input type="checkbox" class="conversion-checkbox-modal" value="${index}" onchange="updateBulkDeleteConversionsModalButton(); updateCombineButtonModal();">
                             </td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.filename}">${conversion.filename}</td>
                             <td><span class="badge ${statusClass}">${statusText}</span></td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}">${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.file_size_display}">${conversion.file_size_display}</td>
                             <td>${conversion.schedule_type || 'immediate'}</td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.output_filename || '-'}">${conversion.output_filename || '-'}</td>
                             <td>
@@ -2238,7 +2423,7 @@
                     // Update pagination (reuse existing function or create new one)
                     updateConversionProgressModalPagination(data.current_page, data.pages, data.total);
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No conversion jobs found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No conversion jobs found</td></tr>';
                 }
                 
                 currentPage = page;
@@ -2594,6 +2779,9 @@
                  
                  tbody.innerHTML = '';
                  
+                 // Store conversions data for combine feature
+                 window.currentConversionsData = data.conversions;
+                 
                  if (data.conversions && data.conversions.length > 0) {
                      data.conversions.forEach((conversion, index) => {
                          const row = document.createElement('tr');
@@ -2613,11 +2801,12 @@
                          
                          row.innerHTML = `
                              <td>
-                                 <input type="checkbox" class="conversion-checkbox" value="${conversion.job_id}" onchange="updateBulkDeleteConversionsButton()">
+                                 <input type="checkbox" class="conversion-checkbox" value="${conversion.job_id}" onchange="updateBulkDeleteConversionsButton(); updateCombineButton();">
                              </td>
                              <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.filename}">${conversion.filename}</td>
                              <td><span class="badge ${statusClass}">${statusText}</span></td>
                              <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}">${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}</td>
+                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.file_size_display}">${conversion.file_size_display}</td>
                              <td>${conversion.schedule_type || 'immediate'}</td>
                              <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.output_filename || '-'}">${conversion.output_filename || '-'}</td>
                              <td>
@@ -2627,12 +2816,12 @@
                                              <i class="fas fa-times"></i>
                                          </button>` : ''
                                      }
-                                                                         ${actualStatus === 'completed' && conversion.output_filename ? 
+                                     ${actualStatus === 'completed' && conversion.output_filename ? 
                                         `<button class="btn btn-sm btn-outline-danger" onclick="deleteConvertedFile(${conversion.job_id})" title="Delete converted file">
                                             <i class="fas fa-trash"></i>
                                         </button>` : ''
                                     }
-                                                                           <button class="btn btn-sm btn-outline-secondary" onclick="removeConversionJobFromHistory(${conversion.job_id})" 
+                                     <button class="btn btn-sm btn-outline-secondary" onclick="removeConversionJobFromHistory(${conversion.job_id})" 
                                               title="Remove from history">
                                           <i class="fas fa-history"></i>
                                       </button>
@@ -2657,12 +2846,12 @@
                          conversionPoll = null;
                      }
                  } else {
-                     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No conversion jobs found</td></tr>';
+                     tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No conversion jobs found</td></tr>';
                  }
              } catch (error) {
                  console.error('Error refreshing conversion progress:', error);
                  const tbody = document.getElementById('conversion-progress-list');
-                 tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading conversion progress</td></tr>';
+                 tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading conversion progress</td></tr>';
              }
          }
 
