@@ -2661,6 +2661,149 @@ def convert_recordings():
     )
     return jsonify({'message': msg})
 
+@app.route('/api/concatenate-videos', methods=['POST'])
+def concatenate_videos():
+    """API endpoint to concatenate multiple converted videos"""
+    try:
+        data = request.get_json()
+        job_ids = data.get('job_ids', [])
+        output_filename = data.get('output_filename', '')
+        
+        if len(job_ids) < 2:
+            return jsonify({'error': 'At least 2 videos must be selected for concatenation'}), 400
+        
+        # Get the conversion jobs and their output files
+        jobs = []
+        for job_id in job_ids:
+            job = ConversionJob.query.get(job_id)
+            if not job or not job.output_filename:
+                return jsonify({'error': f'Job {job_id} not found or has no output file'}), 404
+            jobs.append(job)
+        
+        # Sort jobs by recording start date (earliest first)
+        jobs_with_recordings = []
+        for job in jobs:
+            recording = Recording.query.get(job.recording_id) if job.recording_id else None
+            if not recording:
+                continue
+            jobs_with_recordings.append({
+                'job': job,
+                'recording': recording,
+                'started_at': recording.started_at
+            })
+        
+        # Sort by start date
+        jobs_with_recordings.sort(key=lambda x: x['started_at'])
+        
+        # Build output filename if not provided
+        if not output_filename:
+            first_recording = jobs_with_recordings[0]['recording']
+            streamer = Streamer.query.get(first_recording.streamer_id)
+            streamer_name = streamer.twitch_name if streamer else 'unknown'
+            date_str = first_recording.started_at.strftime('%Y-%m-%d')
+            output_filename = f"{streamer_name}_{date_str}_combined.mp4"
+        
+        # Ensure .mp4 extension
+        if not output_filename.endswith('.mp4'):
+            output_filename += '.mp4'
+        
+        # Create concatenation job
+        concat_job = ConversionJob(
+            recording_id=None,  # No specific recording for concatenation
+            status='pending',
+            schedule_type='immediate',
+            custom_filename=output_filename,
+            progress='Preparing concatenation...'
+        )
+        db.session.add(concat_job)
+        db.session.commit()
+        
+        # Start concatenation in background thread
+        def concatenate_worker():
+            with app.app_context():
+                try:
+                    # Update job status
+                    concat_job.status = 'converting'
+                    concat_job.started_at = datetime.utcnow()
+                    concat_job.progress = 'Creating file list...'
+                    db.session.commit()
+                    
+                    # Create temporary file list for ffmpeg
+                    import tempfile
+                    converted_path = get_converted_path()
+                    
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+                        list_file = f.name
+                        for item in jobs_with_recordings:
+                            job = item['job']
+                            input_path = os.path.join(converted_path, job.output_filename)
+                            # Escape single quotes in filename
+                            safe_path = input_path.replace("'", "'\\''")
+                            f.write(f"file '{safe_path}'\n")
+                    
+                    try:
+                        # Build output path
+                        output_path = os.path.join(converted_path, output_filename)
+                        
+                        # Update progress
+                        concat_job.progress = 'Concatenating videos...'
+                        db.session.commit()
+                        
+                        # Run ffmpeg concatenation
+                        cmd = [
+                            'ffmpeg', '-f', 'concat', '-safe', '0',
+                            '-i', list_file,
+                            '-c', 'copy',  # Copy streams without re-encoding (fast)
+                            '-y',
+                            output_path
+                        ]
+                        
+                        conversion_logger.info(f"Running concatenation: {' '.join(cmd)}")
+                        
+                        result = subprocess.run(
+                            cmd,
+                            capture_output=True,
+                            text=True,
+                            timeout=3600  # 1 hour timeout
+                        )
+                        
+                        if result.returncode == 0 and os.path.exists(output_path):
+                            concat_job.status = 'completed'
+                            concat_job.completed_at = datetime.utcnow()
+                            concat_job.output_filename = output_filename
+                            concat_job.progress = 'Concatenation completed'
+                            conversion_logger.info(f"✅ Concatenation successful: {output_filename}")
+                        else:
+                            raise Exception(f"FFmpeg failed with return code {result.returncode}")
+                    
+                    finally:
+                        # Clean up temp file
+                        try:
+                            os.unlink(list_file)
+                        except:
+                            pass
+                    
+                    db.session.commit()
+                    
+                except Exception as e:
+                    conversion_logger.error(f"❌ Concatenation failed: {e}")
+                    concat_job.status = 'failed'
+                    concat_job.completed_at = datetime.utcnow()
+                    concat_job.progress = f'Error: {str(e)}'
+                    db.session.commit()
+        
+        thread = threading.Thread(target=concatenate_worker, daemon=True)
+        thread.start()
+        
+        return jsonify({
+            'message': 'Concatenation started',
+            'job_id': concat_job.id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error starting concatenation: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/health')
 def health_check():
     """Health check endpoint for Docker"""
