@@ -1215,8 +1215,8 @@
                                 <div class="mb-3">
                                     <label for="schedule-type" class="form-label fw-bold">Schedule Type</label>
                                     <select class="form-select" id="schedule-type" onchange="toggleScheduleOptions()">
-                                        <option value="manual">Manual</option>
-                                        <option value="scheduled">Scheduled</option>
+                                        <option value="immediate">Immediate (Convert Now)</option>
+                                        <option value="scheduled">One-Time</option>
                                         <option value="daily">Daily</option>
                                         <option value="weekly">Weekly</option>
                                     </select>
@@ -1224,14 +1224,16 @@
                                 <div class="mb-3" id="scheduled-time-group">
                                     <label for="scheduled-time" class="form-label fw-bold">Scheduled Time</label>
                                     <input type="datetime-local" class="form-control" id="scheduled-time">
+                                    <small class="form-text text-muted">Select when this conversion should run</small>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="conversion-custom-filename" class="form-label fw-bold">Custom Filename (Optional)</label>
-                                    <input type="text" class="form-control" id="conversion-custom-filename" placeholder="Override filename template">
+                                    <label for="conversion-task-name" class="form-label fw-bold">Task Name</label>
+                                    <input type="text" class="form-control" id="conversion-task-name" placeholder="e.g., Daily 5AM Conversion">
+                                    <small class="form-text text-muted">A friendly name to identify this scheduled task</small>
                                 </div>
                                 
-                                <button type="button" class="btn btn-primary" onclick="saveConversionOptions()">
-                                    <i class="fas fa-save me-1"></i>Save Options
+                                <button type="button" class="btn btn-primary" onclick="saveScheduledConversion()">
+                                    <i class="fas fa-save me-1"></i>Create Scheduled Task
                                 </button>
                             </div>
                         </div>
@@ -1254,15 +1256,14 @@
                                                 <th>Task Name</th>
                                                 <th>Schedule Type</th>
                                                 <th>Scheduled Time</th>
-                                                <th>Last Run</th>
+                                                <th>Next Run</th>
                                                 <th>Status</th>
-                                                <th>Progress</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody id="scheduled-tasks-list">
                                             <tr>
-                                                <td colspan="7" class="text-center text-muted">No scheduled tasks</td>
+                                                <td colspan="6" class="text-center text-muted">No scheduled tasks</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -2822,16 +2823,44 @@
         function toggleScheduleOptions() {
             const scheduleType = document.getElementById('schedule-type').value;
             const scheduledTimeGroup = document.getElementById('scheduled-time-group');
+            const scheduledTimeInput = document.getElementById('scheduled-time');
+            const scheduledTimeLabel = scheduledTimeGroup.querySelector('label');
             
-            // Hide scheduled time for immediate conversions
+            // Show/hide and update label based on schedule type
             if (scheduleType === 'immediate') {
                 scheduledTimeGroup.style.display = 'none';
-                // Clear scheduled time when switching to immediate
-                document.getElementById('scheduled-time').value = '';
-            } else {
+                scheduledTimeInput.value = '';
+            } else if (scheduleType === 'daily' || scheduleType === 'weekly') {
                 scheduledTimeGroup.style.display = 'block';
+                // Change input to time-only for recurring schedules
+                scheduledTimeInput.type = 'time';
+                scheduledTimeLabel.textContent = 'Time of Day';
+                scheduledTimeGroup.querySelector('.form-text').textContent = scheduleType === 'daily' ? 
+                    'Select the time this conversion should run each day' : 
+                    'Select the time this conversion should run each week';
+            } else {
+                // One-time scheduled
+                scheduledTimeGroup.style.display = 'block';
+                scheduledTimeInput.type = 'datetime-local';
+                scheduledTimeLabel.textContent = 'Scheduled Time';
+                scheduledTimeGroup.querySelector('.form-text').textContent = 'Select when this conversion should run';
+                
+                // Set default to current date/time
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                scheduledTimeInput.value = now.toISOString().slice(0, 16);
             }
         }
+
+        // Initialize datetime-local with current time when form loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const scheduledTimeInput = document.getElementById('scheduled-time');
+            if (scheduledTimeInput) {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                scheduledTimeInput.value = now.toISOString().slice(0, 16);
+            }
+        });
 
         // Global variable for conversion progress pagination
         let conversionProgressPage = 1;
@@ -3129,18 +3158,34 @@
                         if (template.schedule_type === 'daily') scheduleTypeDisplay = 'Daily';
                         else if (template.schedule_type === 'weekly') scheduleTypeDisplay = 'Weekly';
                         else if (template.schedule_type === 'custom') scheduleTypeDisplay = 'One-time';
-                        else if (template.schedule_type === 'scheduled') scheduleTypeDisplay = 'Scheduled';
+                        else if (template.schedule_type === 'scheduled') scheduleTypeDisplay = 'One-time';
                         
-                        const nextRunDate = template.next_run ? formatDateEasternCompact(template.next_run) : 'Not set';
-                        const customFilename = template.custom_filename || 'Default naming';
+                        // Format scheduled time based on type
+                        let scheduledTimeDisplay = 'Not set';
+                        if (template.scheduled_at) {
+                            const schedDate = new Date(template.scheduled_at);
+                            if (template.schedule_type === 'daily' || template.schedule_type === 'weekly') {
+                                // Show only time for recurring tasks
+                                scheduledTimeDisplay = schedDate.toLocaleTimeString('en-US', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    timeZone: 'America/New_York'
+                                });
+                            } else {
+                                // Show full date/time for one-time tasks
+                                scheduledTimeDisplay = formatDateEasternCompact(template.scheduled_at);
+                            }
+                        }
+                        
+                        const taskName = template.custom_filename || 'Unnamed Task';
                         
                         row.innerHTML = `
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${customFilename}">${customFilename}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${taskName}">${taskName}</td>
                             <td>${scheduleTypeDisplay}</td>
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${template.next_run ? formatDateEastern(template.next_run) : 'No schedule'}">${nextRunDate}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${template.scheduled_at ? formatDateEastern(template.scheduled_at) : 'No schedule'}">${scheduledTimeDisplay}</td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="Active">Active</td>
                             <td><span class="badge bg-success">Active</span></td>
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="Schedule template">Schedule template</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="Scheduled task">Scheduled task</td>
                             <td>
                                 <span class="text-muted">View Only</span>
                             </td>
@@ -3187,18 +3232,49 @@
                         if (template.schedule_type === 'daily') scheduleTypeDisplay = 'Daily';
                         else if (template.schedule_type === 'weekly') scheduleTypeDisplay = 'Weekly';
                         else if (template.schedule_type === 'custom') scheduleTypeDisplay = 'One-time';
-                        else if (template.schedule_type === 'scheduled') scheduleTypeDisplay = 'Scheduled';
+                        else if (template.schedule_type === 'scheduled') scheduleTypeDisplay = 'One-time';
                         
-                        const nextRunDate = template.next_run ? formatDateEasternCompact(template.next_run) : 'Not set';
-                        const customFilename = template.custom_filename || 'Default naming';
+                        // Format scheduled time based on type
+                        let scheduledTimeDisplay = 'Not set';
+                        if (template.scheduled_at) {
+                            const schedDate = new Date(template.scheduled_at);
+                            if (template.schedule_type === 'daily' || template.schedule_type === 'weekly') {
+                                // Show only time for recurring tasks
+                                scheduledTimeDisplay = schedDate.toLocaleTimeString('en-US', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    timeZone: 'America/New_York'
+                                });
+                            } else {
+                                // Show full date/time for one-time tasks
+                                scheduledTimeDisplay = formatDateEasternCompact(template.scheduled_at);
+                            }
+                        }
+                        
+                        // Format next run
+                        let nextRunDisplay = 'Not scheduled';
+                        if (template.scheduled_at) {
+                            if (template.schedule_type === 'daily' || template.schedule_type === 'weekly') {
+                                const schedDate = new Date(template.scheduled_at);
+                                nextRunDisplay = schedDate.toLocaleTimeString('en-US', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    timeZone: 'America/New_York'
+                                });
+                                nextRunDisplay += template.schedule_type === 'daily' ? ' (Daily)' : ' (Weekly)';
+                            } else {
+                                nextRunDisplay = formatDateEastern(template.scheduled_at);
+                            }
+                        }
+                        
+                        const taskName = template.custom_filename || 'Unnamed Task';
                         
                         row.innerHTML = `
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${customFilename}">${customFilename}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${taskName}">${taskName}</td>
                             <td>${scheduleTypeDisplay}</td>
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${template.next_run ? formatDateEastern(template.next_run) : 'No schedule'}">${nextRunDate}</td>
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="Active">Active</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${template.scheduled_at ? formatDateEastern(template.scheduled_at) : 'No schedule'}">${scheduledTimeDisplay}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${nextRunDisplay}">${nextRunDisplay}</td>
                             <td><span class="badge bg-success">Active</span></td>
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="Schedule template">Schedule template</td>
                             <td>
                                 <button class="btn btn-sm btn-outline-danger" onclick="removeScheduleTemplate(${template.id})" 
                                         title="Remove schedule">
@@ -3212,12 +3288,12 @@
                     // Reinitialize tooltips for the new table rows
                     initializeTooltips();
                 } else {
-                    tasksList.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No active schedule templates</td></tr>';
+                    tasksList.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No active schedule templates</td></tr>';
                 }
             } catch (error) {
                 console.error('Error loading scheduled tasks:', error);
                 const tasksList = document.getElementById('scheduled-tasks-list');
-                tasksList.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading scheduled tasks: ${error.message}</td></tr>`;
+                tasksList.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading scheduled tasks: ${error.message}</td></tr>`;
             }
         }
 
@@ -3452,50 +3528,74 @@
             }
         }
 
-        // Save conversion options
-        async function saveConversionOptions() {
-            const options = {
-                schedule_type: document.getElementById('schedule-type').value,
-                scheduled_time: document.getElementById('scheduled-time').value,
-                custom_filename: document.getElementById('conversion-custom-filename').value
+        // Save scheduled conversion
+        async function saveScheduledConversion() {
+            const scheduleType = document.getElementById('schedule-type').value;
+            const scheduledTimeInput = document.getElementById('scheduled-time');
+            const taskName = document.getElementById('conversion-task-name').value.trim();
+            
+            // Validate task name
+            if (!taskName) {
+                alert('Please enter a task name');
+                return;
+            }
+            
+            // Validate scheduled time for non-immediate tasks
+            if (scheduleType !== 'immediate' && !scheduledTimeInput.value) {
+                alert('Please select a time for this scheduled task');
+                return;
+            }
+            
+            // Build scheduled time based on type
+            let scheduledTime = null;
+            if (scheduleType !== 'immediate') {
+                if (scheduleType === 'daily' || scheduleType === 'weekly') {
+                    // For recurring tasks, build a full datetime from today + selected time
+                    const now = new Date();
+                    const [hours, minutes] = scheduledTimeInput.value.split(':');
+                    now.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                    scheduledTime = now.toISOString();
+                } else {
+                    // For one-time scheduled, use the full datetime
+                    scheduledTime = new Date(scheduledTimeInput.value).toISOString();
+                }
+            }
+            
+            const scheduledData = {
+                schedule_type: scheduleType,
+                scheduled_time: scheduledTime,
+                custom_filename: taskName  // Using custom_filename field for task name
             };
             
             try {
-                // Store options in localStorage for persistence
-                localStorage.setItem('conversionOptions', JSON.stringify(options));
+                const response = await fetch('/api/schedule-template', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(scheduledData)
+                });
                 
-                // If a scheduled time is set, create a scheduled task
-                if (options.scheduled_time) {
-                    // Create a scheduled task for future conversions
-                    const scheduledData = {
-                        schedule_type: options.schedule_type,
-                        scheduled_time: new Date(options.scheduled_time).toISOString(),
-                        custom_filename: options.custom_filename
-                    };
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('Scheduled task created successfully!');
                     
-                    const response = await fetch('/api/schedule-template', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(scheduledData)
-                    });
+                    // Clear form
+                    document.getElementById('schedule-type').value = 'immediate';
+                    document.getElementById('scheduled-time').value = '';
+                    document.getElementById('conversion-task-name').value = '';
+                    toggleScheduleOptions();
                     
-                    if (response.ok) {
-                        const result = await response.json();
-                        alert('Conversion options saved and scheduled template created!');
-                        loadScheduledTasks(); // Refresh the scheduled tasks display
-                    } else {
-                        const errorData = await response.json();
-                        const errorMessage = errorData.error || 'Unknown error';
-                        alert(`Options saved but failed to create scheduled template: ${errorMessage}`);
-                    }
+                    // Refresh scheduled tasks display
+                    loadScheduledTasks();
                 } else {
-                    alert('Conversion options saved successfully!');
+                    const errorData = await response.json();
+                    const errorMessage = errorData.error || 'Unknown error';
+                    alert(`Failed to create scheduled task: ${errorMessage}`);
                 }
             } catch (error) {
-                console.error('Error saving conversion options:', error);
-                alert('Error saving conversion options');
+                console.error('Error creating scheduled task:', error);
+                alert('Error creating scheduled task');
             }
         }
 
@@ -3750,3 +3850,4 @@
     </script>
 </body>
 </html>
+
