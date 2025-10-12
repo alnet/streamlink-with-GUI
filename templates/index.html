@@ -2389,7 +2389,9 @@
                             <td>
                                 <input type="checkbox" class="conversion-checkbox-modal" value="${index}" onchange="updateBulkDeleteConversionsModalButton(); updateCombineButtonModal();">
                             </td>
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.filename}">${conversion.filename}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.filename}">
+                                ${conversion.is_concatenation ? '<i class="fas fa-object-group me-1" title="Combined video"></i>' : ''}${conversion.filename}
+                            </td>
                             <td><span class="badge ${statusClass}">${statusText}</span></td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}">${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}</td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.file_size_display}">${conversion.file_size_display}</td>
@@ -2799,16 +2801,18 @@
                              statusText = 'QUEUED';
                          }
                          
-                         row.innerHTML = `
-                             <td>
-                                 <input type="checkbox" class="conversion-checkbox" value="${conversion.job_id}" onchange="updateBulkDeleteConversionsButton(); updateCombineButton();">
-                             </td>
-                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.filename}">${conversion.filename}</td>
-                             <td><span class="badge ${statusClass}">${statusText}</span></td>
-                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}">${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}</td>
-                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.file_size_display}">${conversion.file_size_display}</td>
-                             <td>${conversion.schedule_type || 'immediate'}</td>
-                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.output_filename || '-'}">${conversion.output_filename || '-'}</td>
+                        row.innerHTML = `
+                            <td>
+                                <input type="checkbox" class="conversion-checkbox" value="${conversion.job_id}" onchange="updateBulkDeleteConversionsButton(); updateCombineButton();">
+                            </td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.filename}">
+                                ${conversion.is_concatenation ? '<i class="fas fa-object-group me-1" title="Combined video"></i>' : ''}${conversion.filename}
+                            </td>
+                            <td><span class="badge ${statusClass}">${statusText}</span></td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}">${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.file_size_display}">${conversion.file_size_display}</td>
+                            <td>${conversion.schedule_type || 'immediate'}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.output_filename || '-'}">${conversion.output_filename || '-'}</td>
                              <td>
                                  <div class="d-flex gap-1 justify-content-center">
                                      ${actualStatus !== 'completed' && actualStatus !== 'failed' ? 

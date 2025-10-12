@@ -585,6 +585,14 @@ def _utcnow():
     """Get current UTC time (naive)"""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
+def human_bytes(n: int) -> str:
+    """Convert bytes to human-readable format"""
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024:
+            return f"{n:.1f}{unit}"
+        n /= 1024
+    return f"{n:.1f}PB"
+
 def _build_ffmpeg_cmd(input_path, output_path, settings: ConversionSettings):
     """Build FFmpeg command using the selected preset"""
     key = getattr(settings, "ffmpeg_preset", DEFAULT_FFMPEG_PRESET_KEY)
@@ -2707,7 +2715,7 @@ def concatenate_videos():
         if not output_filename.endswith('.mp4'):
             output_filename += '.mp4'
         
-        # Create concatenation job
+        # Create concatenation job - IMPORTANT: Use a special filename to identify it
         concat_job = ConversionJob(
             recording_id=None,  # No specific recording for concatenation
             status='pending',
@@ -2718,15 +2726,20 @@ def concatenate_videos():
         db.session.add(concat_job)
         db.session.commit()
         
+        conversion_logger.info(f"🔗 Created concatenation job {concat_job.id} for {len(jobs_with_recordings)} videos")
+        
         # Start concatenation in background thread
         def concatenate_worker():
             with app.app_context():
                 try:
                     # Update job status
-                    concat_job.status = 'converting'
-                    concat_job.started_at = datetime.utcnow()
-                    concat_job.progress = 'Creating file list...'
+                    concat_job_instance = ConversionJob.query.get(concat_job.id)
+                    concat_job_instance.status = 'converting'
+                    concat_job_instance.started_at = datetime.utcnow()
+                    concat_job_instance.progress = 'Creating file list...'
                     db.session.commit()
+                    
+                    conversion_logger.info(f"🔗 Starting concatenation for job {concat_job.id}")
                     
                     # Create temporary file list for ffmpeg
                     import tempfile
@@ -2734,19 +2747,24 @@ def concatenate_videos():
                     
                     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
                         list_file = f.name
+                        conversion_logger.info(f"📝 Created temp file list: {list_file}")
                         for item in jobs_with_recordings:
                             job = item['job']
                             input_path = os.path.join(converted_path, job.output_filename)
+                            if not os.path.exists(input_path):
+                                raise Exception(f"Input file not found: {job.output_filename}")
                             # Escape single quotes in filename
                             safe_path = input_path.replace("'", "'\\''")
                             f.write(f"file '{safe_path}'\n")
+                            conversion_logger.info(f"  ➕ Added: {job.output_filename}")
                     
                     try:
                         # Build output path
                         output_path = os.path.join(converted_path, output_filename)
+                        conversion_logger.info(f"📁 Output path: {output_path}")
                         
                         # Update progress
-                        concat_job.progress = 'Concatenating videos...'
+                        concat_job_instance.progress = 'Concatenating videos...'
                         db.session.commit()
                         
                         # Run ffmpeg concatenation
@@ -2758,7 +2776,7 @@ def concatenate_videos():
                             output_path
                         ]
                         
-                        conversion_logger.info(f"Running concatenation: {' '.join(cmd)}")
+                        conversion_logger.info(f"🎬 Running FFmpeg: {' '.join(cmd)}")
                         
                         result = subprocess.run(
                             cmd,
@@ -2767,33 +2785,44 @@ def concatenate_videos():
                             timeout=3600  # 1 hour timeout
                         )
                         
+                        conversion_logger.info(f"📊 FFmpeg exit code: {result.returncode}")
+                        if result.stdout:
+                            conversion_logger.info(f"📤 FFmpeg stdout: {result.stdout[:500]}")
+                        if result.stderr:
+                            conversion_logger.info(f"📤 FFmpeg stderr: {result.stderr[:500]}")
+                        
                         if result.returncode == 0 and os.path.exists(output_path):
-                            concat_job.status = 'completed'
-                            concat_job.completed_at = datetime.utcnow()
-                            concat_job.output_filename = output_filename
-                            concat_job.progress = 'Concatenation completed'
-                            conversion_logger.info(f"✅ Concatenation successful: {output_filename}")
+                            file_size = os.path.getsize(output_path)
+                            concat_job_instance.status = 'completed'
+                            concat_job_instance.completed_at = datetime.utcnow()
+                            concat_job_instance.output_filename = output_filename
+                            concat_job_instance.progress = f'Completed - {human_bytes(file_size)}'
+                            conversion_logger.info(f"✅ Concatenation successful: {output_filename} ({human_bytes(file_size)})")
                         else:
-                            raise Exception(f"FFmpeg failed with return code {result.returncode}")
+                            raise Exception(f"FFmpeg failed with return code {result.returncode}\nStderr: {result.stderr}")
                     
                     finally:
                         # Clean up temp file
                         try:
                             os.unlink(list_file)
-                        except:
-                            pass
+                            conversion_logger.info(f"🗑️ Cleaned up temp file: {list_file}")
+                        except Exception as e:
+                            conversion_logger.warning(f"⚠️ Failed to delete temp file: {e}")
                     
                     db.session.commit()
+                    conversion_logger.info(f"✅ Concatenation job {concat_job.id} completed")
                     
                 except Exception as e:
                     conversion_logger.error(f"❌ Concatenation failed: {e}")
-                    concat_job.status = 'failed'
-                    concat_job.completed_at = datetime.utcnow()
-                    concat_job.progress = f'Error: {str(e)}'
+                    concat_job_instance = ConversionJob.query.get(concat_job.id)
+                    concat_job_instance.status = 'failed'
+                    concat_job_instance.completed_at = datetime.utcnow()
+                    concat_job_instance.progress = f'Error: {str(e)[:200]}'
                     db.session.commit()
         
         thread = threading.Thread(target=concatenate_worker, daemon=True)
         thread.start()
+        conversion_logger.info(f"🚀 Started concatenation worker thread for job {concat_job.id}")
         
         return jsonify({
             'message': 'Concatenation started',
@@ -2801,7 +2830,7 @@ def concatenate_videos():
         })
         
     except Exception as e:
-        logger.error(f"Error starting concatenation: {e}")
+        conversion_logger.error(f"❌ Error starting concatenation: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health')
@@ -2856,8 +2885,17 @@ def get_conversion_progress():
         
         logger.info(f"Fetching conversion progress: page={page}, per_page={per_page}")
         
-        # Filter out template jobs (jobs with recording_id = NULL) and only show real conversion jobs
-        jobs = ConversionJob.query.filter(ConversionJob.recording_id.isnot(None)).order_by(ConversionJob.id.desc()).paginate(
+        # Filter out template jobs (jobs with recording_id = NULL AND schedule_type in scheduled types)
+        # but INCLUDE concatenation jobs (recording_id = NULL AND schedule_type = 'immediate')
+        jobs = ConversionJob.query.filter(
+            db.or_(
+                ConversionJob.recording_id.isnot(None),  # Regular conversion jobs
+                db.and_(
+                    ConversionJob.recording_id.is_(None),  # Concatenation jobs
+                    ConversionJob.schedule_type == 'immediate'
+                )
+            )
+        ).order_by(ConversionJob.id.desc()).paginate(
             page=page, per_page=per_page, error_out=False
         )
         
@@ -2867,6 +2905,9 @@ def get_conversion_progress():
         for job in jobs.items:
             try:
                 recording = Recording.query.get(job.recording_id) if job.recording_id else None
+                
+                # For concatenation jobs, use custom filename as display name
+                filename = job.custom_filename if not recording else (recording.filename if recording else 'Unknown')
                 
                 # Get file size if output file exists
                 file_size = None
@@ -2884,7 +2925,7 @@ def get_conversion_progress():
                 conversions.append({
                     'job_id': job.id,
                     'recording_id': job.recording_id,
-                    'filename': recording.filename if recording else 'Template Job',
+                    'filename': filename,
                     'status': job.status,
                     'progress': job.progress,
                     'output_filename': job.output_filename,
@@ -2895,7 +2936,8 @@ def get_conversion_progress():
                     'started_at': job.started_at.isoformat() + 'Z' if job.started_at else None,
                     'completed_at': job.completed_at.isoformat() + 'Z' if job.completed_at else None,
                     'custom_filename': job.custom_filename,
-                    'delete_original': job.delete_original
+                    'delete_original': job.delete_original,
+                    'is_concatenation': job.recording_id is None and job.schedule_type == 'immediate'
                 })
             except Exception as e:
                 logger.error(f"Error processing conversion job {job.id}: {e}")
