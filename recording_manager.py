@@ -314,7 +314,8 @@ class RecordingManager:
         logger.info(f"🎥 RECORDING: Starting recording process for {info.id}")
         
         from app import get_download_path
-        from streamlink_manager import StreamlinkManager  # Import your working class
+        from streamlink_manager import StreamlinkManager
+        from twitch_manager import TwitchManager, StreamStatus
         
         try:
             # Use the data that was passed from start_recording
@@ -323,6 +324,31 @@ class RecordingManager:
             auth_data = info.auth_data
             
             logger.info(f"🎯 Recording {info.id} - Streamer: {streamer_twitch_name}, Quality: {streamer_quality}")
+            
+            # Fetch stream title before starting recording
+            try:
+                # Get models from app extensions
+                models = self.app.extensions.get('models', {})
+                Streamer = models.get('Streamer')
+                Recording = models.get('Recording')
+                AppConfig = models.get('AppConfig')
+                
+                if Streamer and AppConfig:
+                    streamer = Streamer.query.get(info.streamer_id)
+                    if streamer:
+                        config = AppConfig(streamer)
+                        twitch_manager = TwitchManager(config)
+                        status, title = twitch_manager.check_user(streamer_twitch_name)
+                        
+                        if status == StreamStatus.ONLINE and title:
+                            # Update recording with title
+                            recording = Recording.query.get(info.id)
+                            if recording:
+                                recording.title = title
+                                self.db.session.commit()
+                                logger.info(f"📝 Updated recording {info.id} with title: {title}")
+            except Exception as title_error:
+                logger.warning(f"Failed to fetch stream title: {title_error}")
             
             # Build output path
             download_path = get_download_path()
