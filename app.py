@@ -2715,7 +2715,7 @@ def concatenate_videos():
         if not output_filename.endswith('.mp4'):
             output_filename += '.mp4'
         
-        # Create concatenation job - IMPORTANT: Use a special filename to identify it
+        # Create concatenation job
         concat_job = ConversionJob(
             recording_id=None,  # No specific recording for concatenation
             status='pending',
@@ -2726,20 +2726,34 @@ def concatenate_videos():
         db.session.add(concat_job)
         db.session.commit()
         
-        conversion_logger.info(f"🔗 Created concatenation job {concat_job.id} for {len(jobs_with_recordings)} videos")
+        # Store the job ID to pass to worker thread
+        concat_job_id = concat_job.id
+        
+        # Store the filenames to concatenate (not the job objects)
+        filenames_to_concat = [item['job'].output_filename for item in jobs_with_recordings]
+        
+        conversion_logger.info(f"🔗 Created concatenation job {concat_job_id} for {len(jobs_with_recordings)} videos")
         
         # Start concatenation in background thread
         def concatenate_worker():
             with app.app_context():
+                # Create a fresh session for this thread
+                session = db.session
+                
                 try:
+                    # Re-query the job in this thread's session
+                    concat_job_instance = session.query(ConversionJob).get(concat_job_id)
+                    if not concat_job_instance:
+                        conversion_logger.error(f"❌ Job {concat_job_id} not found in worker thread")
+                        return
+                    
                     # Update job status
-                    concat_job_instance = ConversionJob.query.get(concat_job.id)
                     concat_job_instance.status = 'converting'
                     concat_job_instance.started_at = datetime.utcnow()
                     concat_job_instance.progress = 'Creating file list...'
-                    db.session.commit()
+                    session.commit()
                     
-                    conversion_logger.info(f"🔗 Starting concatenation for job {concat_job.id}")
+                    conversion_logger.info(f"🔗 Starting concatenation for job {concat_job_id}")
                     
                     # Create temporary file list for ffmpeg
                     import tempfile
@@ -2748,15 +2762,14 @@ def concatenate_videos():
                     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
                         list_file = f.name
                         conversion_logger.info(f"📝 Created temp file list: {list_file}")
-                        for item in jobs_with_recordings:
-                            job = item['job']
-                            input_path = os.path.join(converted_path, job.output_filename)
+                        for filename in filenames_to_concat:
+                            input_path = os.path.join(converted_path, filename)
                             if not os.path.exists(input_path):
-                                raise Exception(f"Input file not found: {job.output_filename}")
+                                raise Exception(f"Input file not found: {filename}")
                             # Escape single quotes in filename
                             safe_path = input_path.replace("'", "'\\''")
                             f.write(f"file '{safe_path}'\n")
-                            conversion_logger.info(f"  ➕ Added: {job.output_filename}")
+                            conversion_logger.info(f"  ➕ Added: {filename}")
                     
                     try:
                         # Build output path
@@ -2765,7 +2778,7 @@ def concatenate_videos():
                         
                         # Update progress
                         concat_job_instance.progress = 'Concatenating videos...'
-                        db.session.commit()
+                        session.commit()
                         
                         # Run ffmpeg concatenation
                         cmd = [
@@ -2799,7 +2812,7 @@ def concatenate_videos():
                             concat_job_instance.progress = f'Completed - {human_bytes(file_size)}'
                             conversion_logger.info(f"✅ Concatenation successful: {output_filename} ({human_bytes(file_size)})")
                         else:
-                            raise Exception(f"FFmpeg failed with return code {result.returncode}\nStderr: {result.stderr}")
+                            raise Exception(f"FFmpeg failed with return code {result.returncode}\nStderr: {result.stderr[:500]}")
                     
                     finally:
                         # Clean up temp file
@@ -2809,24 +2822,32 @@ def concatenate_videos():
                         except Exception as e:
                             conversion_logger.warning(f"⚠️ Failed to delete temp file: {e}")
                     
-                    db.session.commit()
-                    conversion_logger.info(f"✅ Concatenation job {concat_job.id} completed")
+                    session.commit()
+                    conversion_logger.info(f"✅ Concatenation job {concat_job_id} completed")
                     
                 except Exception as e:
                     conversion_logger.error(f"❌ Concatenation failed: {e}")
-                    concat_job_instance = ConversionJob.query.get(concat_job.id)
-                    concat_job_instance.status = 'failed'
-                    concat_job_instance.completed_at = datetime.utcnow()
-                    concat_job_instance.progress = f'Error: {str(e)[:200]}'
-                    db.session.commit()
+                    import traceback
+                    conversion_logger.error(f"📋 Traceback: {traceback.format_exc()}")
+                    
+                    try:
+                        # Re-query in case of error
+                        concat_job_instance = session.query(ConversionJob).get(concat_job_id)
+                        if concat_job_instance:
+                            concat_job_instance.status = 'failed'
+                            concat_job_instance.completed_at = datetime.utcnow()
+                            concat_job_instance.progress = f'Error: {str(e)[:200]}'
+                            session.commit()
+                    except Exception as commit_error:
+                        conversion_logger.error(f"❌ Failed to update job status on error: {commit_error}")
         
         thread = threading.Thread(target=concatenate_worker, daemon=True)
         thread.start()
-        conversion_logger.info(f"🚀 Started concatenation worker thread for job {concat_job.id}")
+        conversion_logger.info(f"🚀 Started concatenation worker thread for job {concat_job_id}")
         
         return jsonify({
             'message': 'Concatenation started',
-            'job_id': concat_job.id
+            'job_id': concat_job_id
         })
         
     except Exception as e:
