@@ -2470,10 +2470,15 @@
                                             <i class="fas fa-times"></i>
                                         </button>` : ''
                                     }
-                                    ${actualStatus === 'completed' && conversion.output_filename && conversion.output_filename !== 'User Deleted File' ? 
-                                        `<button class="btn btn-sm btn-outline-danger" onclick="deleteConvertedFile(${conversion.job_id})" title="Delete converted file">
-                                            <i class="fas fa-trash"></i>
-                                        </button>` : ''
+                                    ${actualStatus === 'completed' ? 
+                                        (conversion.output_filename && conversion.output_filename !== 'User Deleted File' ? 
+                                            `<button class="btn btn-sm btn-outline-danger" onclick="deleteConvertedFile(${conversion.job_id})" title="Delete converted file">
+                                                <i class="fas fa-trash"></i>
+                                            </button>` : 
+                                            `<button class="btn btn-sm btn-outline-secondary" disabled title="File already deleted" style="opacity: 0.5; cursor: not-allowed;">
+                                                <i class="fas fa-trash"></i>
+                                            </button>`
+                                        ) : ''
                                     }
                                     <button class="btn btn-sm btn-outline-secondary" onclick="removeConversionJobFromHistory(${conversion.job_id})" 
                                              title="Remove from history">
@@ -2888,11 +2893,16 @@
                                              <i class="fas fa-times"></i>
                                          </button>` : ''
                                      }
-                                     ${actualStatus === 'completed' && conversion.output_filename && conversion.output_filename !== 'User Deleted File' ? 
-                                        `<button class="btn btn-sm btn-outline-danger" onclick="deleteConvertedFile(${conversion.job_id})" title="Delete converted file">
-                                            <i class="fas fa-trash"></i>
-                                        </button>` : ''
-                                    }
+                                     ${actualStatus === 'completed' ? 
+                                         (conversion.output_filename && conversion.output_filename !== 'User Deleted File' ? 
+                                             `<button class="btn btn-sm btn-outline-danger" onclick="deleteConvertedFile(${conversion.job_id})" title="Delete converted file">
+                                                 <i class="fas fa-trash"></i>
+                                             </button>` : 
+                                             `<button class="btn btn-sm btn-outline-secondary" disabled title="File already deleted" style="opacity: 0.5; cursor: not-allowed;">
+                                                 <i class="fas fa-trash"></i>
+                                             </button>`
+                                         ) : ''
+                                     }
                                      <button class="btn btn-sm btn-outline-secondary" onclick="removeConversionJobFromHistory(${conversion.job_id})" 
                                               title="Remove from history">
                                           <i class="fas fa-history"></i>
