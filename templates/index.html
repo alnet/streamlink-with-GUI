@@ -1476,19 +1476,37 @@
          
          // Function to initialize Bootstrap tooltips
          function initializeTooltips() {
-             // Destroy existing tooltips first
-             var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-             existingTooltips.forEach(function(element) {
+             // 1. First, dispose ALL tooltip instances (even orphaned ones)
+             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(element) {
                  var tooltip = bootstrap.Tooltip.getInstance(element);
                  if (tooltip) {
                      tooltip.dispose();
                  }
              });
              
-             // Initialize new tooltips
+             // 2. Clean up any orphaned tooltip elements in the DOM
+             document.querySelectorAll('.tooltip').forEach(function(el) {
+                 el.remove();
+             });
+             
+             // 3. Initialize new tooltips
              var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
              tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                 new bootstrap.Tooltip(tooltipTriggerEl);
+                 new bootstrap.Tooltip(tooltipTriggerEl, {
+                     trigger: 'hover',
+                     container: 'body'  // Ensures proper cleanup
+                 });
+             });
+         }
+         
+         // Helper function to dispose tooltips in an element before removal
+         function disposeTooltipsInElement(element) {
+             // Dispose tooltips in the element that's about to be removed
+             element.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+                 var tooltip = bootstrap.Tooltip.getInstance(el);
+                 if (tooltip) {
+                     tooltip.dispose();
+                 }
              });
          }
 
@@ -2799,16 +2817,17 @@
                                  method: 'DELETE'
                              });
                              
-                             if (historyResponse.ok) {
-                                 // Remove the row from the UI immediately
-                                 const rows = document.querySelectorAll('#recent-recordings-list tr, #recordings-table tr');
-                                 rows.forEach(row => {
-                                     const deleteBtn = row.querySelector('button[onclick*="deleteRecording"]');
-                                     if (deleteBtn && deleteBtn.getAttribute('onclick').includes(filename)) {
-                                         row.remove();
-                                     }
-                                 });
-                             } else {
+                            if (historyResponse.ok) {
+                                // Remove the row from the UI immediately
+                                const rows = document.querySelectorAll('#recent-recordings-list tr, #recordings-table tr');
+                                rows.forEach(row => {
+                                    const deleteBtn = row.querySelector('button[onclick*="deleteRecording"]');
+                                    if (deleteBtn && deleteBtn.getAttribute('onclick').includes(filename)) {
+                                        disposeTooltipsInElement(row);  // Clean up tooltips before removing
+                                        row.remove();
+                                    }
+                                });
+                            } else {
                                  const error = await historyResponse.json();
                                  alert('File deleted but failed to remove from history: ' + error.error);
                                  return;
