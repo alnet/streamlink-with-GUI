@@ -1436,13 +1436,42 @@
                  });
              }
              
-             // Auto-refresh every 30 seconds
-             setInterval(function() {
-                 loadStreamers();
-                 loadRecentRecordings();
-                 loadStatus();
-                 loadActiveRecordings();
-             }, 30000);
+            // Auto-refresh with Page Visibility API to stop polling when tab is hidden
+            let mainRefreshInterval;
+            
+            function startAutoRefresh() {
+                if (mainRefreshInterval) {
+                    clearInterval(mainRefreshInterval);
+                }
+                mainRefreshInterval = setInterval(function() {
+                    if (!document.hidden) {
+                        loadStreamers();
+                        loadRecentRecordings();
+                        loadStatus();
+                        loadActiveRecordings();
+                    }
+                }, 30000);
+            }
+            
+            // Start auto-refresh
+            startAutoRefresh();
+            
+            // Pause/resume based on page visibility
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    if (mainRefreshInterval) {
+                        clearInterval(mainRefreshInterval);
+                        mainRefreshInterval = null;
+                    }
+                } else {
+                    // Page became visible again - refresh immediately then start interval
+                    loadStreamers();
+                    loadRecentRecordings();
+                    loadStatus();
+                    loadActiveRecordings();
+                    startAutoRefresh();
+                }
+            });
          });
          
          // Function to initialize Bootstrap tooltips

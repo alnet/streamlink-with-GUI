@@ -514,7 +514,7 @@ HOSTNAME = socket.gethostname()
 def jlog(logger, event: str, **kv):
     """Emit a structured JSON log line (single line, easy to grep/parse)."""
     payload = {
-        "ts": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "ts": _utcnow().isoformat(timespec="seconds") + "Z",
         "host": HOSTNAME,
         "event": event,
         **kv
@@ -1078,10 +1078,11 @@ def _normalize_twitch_token(raw: str) -> str:
     if not raw:
         return ""
     s = raw.strip()
+    # Remove prefix case-insensitively
     if s.lower().startswith("oauth:"):
-        s = s.split(":", 1)[1].strip()
-    if s.lower().startswith("oauth "):
-        s = s.split(" ", 1)[1].strip()
+        s = s[6:].strip()  # Skip "oauth:"
+    elif s.lower().startswith("oauth "):
+        s = s[6:].strip()  # Skip "oauth "
     return s
 
 def build_twitch_cli_cmd(username: str, ts_out_path: str, auth: 'TwitchAuth'):
@@ -1351,7 +1352,7 @@ def update_streamer(streamer_id):
     # Store old active state
     was_active = streamer.is_active
     
-    streamer.updated_at = datetime.utcnow()
+    streamer.updated_at = _utcnow()
     db.session.commit()
     
     # Handle monitoring state changes
@@ -1799,7 +1800,7 @@ def debug_recording_manager_detail(streamer_id):
                     filename=f"test-{streamer.twitch_name}-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
                     title="Test Recording",
                     status='recording',
-                    started_at=datetime.utcnow()
+                    started_at=_utcnow()
                 )
                 
                 # Don't commit yet, just test creation
@@ -1873,7 +1874,7 @@ def debug_step_by_step_recording(streamer_id):
                         filename=recording_manager._make_filename(streamer),
                         title="",
                         status='recording',
-                        started_at=datetime.utcnow()
+                        started_at=_utcnow()
                     )
                     recording_manager.db.session.add(recording)
                     recording_manager.db.session.commit()
@@ -1891,7 +1892,7 @@ def debug_step_by_step_recording(streamer_id):
                     id=recording_id,
                     streamer_id=streamer_id,
                     state=RecordingState.STARTING,
-                    started_at=datetime.utcnow(),
+                    started_at=_utcnow(),
                     stop_event=threading.Event(),
                     filename=recording.filename
                 )
@@ -2306,7 +2307,7 @@ def get_status():
     active_streamers = Streamer.query.filter_by(is_active=True).count()
     total_recordings = Recording.query.count()
     recent_recordings = Recording.query.filter(
-        Recording.started_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        Recording.started_at >= _utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     ).count()
     
     return jsonify({
@@ -2464,8 +2465,8 @@ def create_sample_recording():
             title="Sample Recording for Testing",
             game="Test Game",
             status='completed',
-            started_at=datetime.utcnow() - timedelta(hours=1),
-            ended_at=datetime.utcnow(),
+            started_at=_utcnow() - timedelta(hours=1),
+            ended_at=_utcnow(),
             duration=3600,  # 1 hour
             file_size=1024*1024*100  # 100MB
         )
@@ -2555,7 +2556,7 @@ def save_conversion_settings():
             return jsonify({"error": "Max duration must be between 3600 and 86400 seconds"}), 400
         settings.watchdog_max_duration_s = max_dur
     
-    settings.updated_at = datetime.utcnow()
+    settings.updated_at = _utcnow()
     
     db.session.commit()
     
@@ -2749,7 +2750,7 @@ def concatenate_videos():
                     
                     # Update job status
                     concat_job_instance.status = 'converting'
-                    concat_job_instance.started_at = datetime.utcnow()
+                    concat_job_instance.started_at = _utcnow()
                     concat_job_instance.progress = 'Creating file list...'
                     session.commit()
                     
@@ -2807,7 +2808,7 @@ def concatenate_videos():
                         if result.returncode == 0 and os.path.exists(output_path):
                             file_size = os.path.getsize(output_path)
                             concat_job_instance.status = 'completed'
-                            concat_job_instance.completed_at = datetime.utcnow()
+                            concat_job_instance.completed_at = _utcnow()
                             concat_job_instance.output_filename = output_filename
                             concat_job_instance.progress = f'Completed - {human_bytes(file_size)}'
                             conversion_logger.info(f"✅ Concatenation successful: {output_filename} ({human_bytes(file_size)})")
@@ -2835,7 +2836,7 @@ def concatenate_videos():
                         concat_job_instance = session.query(ConversionJob).get(concat_job_id)
                         if concat_job_instance:
                             concat_job_instance.status = 'failed'
-                            concat_job_instance.completed_at = datetime.utcnow()
+                            concat_job_instance.completed_at = _utcnow()
                             concat_job_instance.progress = f'Error: {str(e)[:200]}'
                             session.commit()
                     except Exception as commit_error:
@@ -2893,7 +2894,7 @@ def set_twitch_auth():
     ta.client_secret = client_secret
     ta.oauth_token = oauth_token
     ta.extra_flags = extra_flags
-    ta.updated_at = datetime.utcnow()
+    ta.updated_at = _utcnow()
     db.session.commit()
     return jsonify({'message': 'Twitch auth saved'})
 
@@ -3307,8 +3308,8 @@ def build_custom_filename(template, recording):
     filename = filename.replace('{datetime}', datetime_str)
     filename = filename.replace('{game}', recording.game or 'unknown')
     
-    # Clean up any remaining invalid characters
-    filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.', '/', '\\'))
+    # Clean up any remaining invalid characters (excluding path separators for security)
+    filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.'))
     filename = filename.strip()
     
     # Ensure it ends with .mp4
@@ -3573,7 +3574,7 @@ if __name__ == '__main__':
                     r.status = 'failed'
                 else:
                     r.status = 'failed'
-                r.ended_at = r.ended_at or datetime.utcnow()
+                r.ended_at = r.ended_at or _utcnow()
                 if r.started_at and r.ended_at:
                     r.duration = max(0, int((r.ended_at - r.started_at).total_seconds()))
             db.session.commit()
