@@ -1075,6 +1075,9 @@
                                     <button class="btn btn-sm btn-primary me-2" id="combine-videos-btn" onclick="combineSelectedVideos()" disabled>
                                         <i class="fas fa-object-group me-1"></i>Combine Selected
                                     </button>
+                                    <button class="btn btn-sm btn-danger me-2" id="delete-selected-btn" onclick="deleteSelectedConversionJobs()" disabled>
+                                        <i class="fas fa-trash me-1"></i>Delete
+                                    </button>
                                     <button class="btn btn-sm btn-outline-primary me-2" onclick="showConversionProgressModal()">
                                         View All
                                     </button>
@@ -1175,7 +1178,11 @@
                                     <div class="mb-3">
                                         <label for="custom-filename-template" class="form-label fw-bold">File Naming Scheme</label>
                                         <input type="text" class="form-control" id="custom-filename-template" placeholder="{streamer}_{date}_{title}">
-                                        <small class="form-text text-muted">Use variables: {streamer}, {twitch_name}, {title}, {date}, {time}, {datetime}, {game}</small>
+                                        <small class="form-text text-muted">
+                                            Use variables: {streamer}, {streamer_lower}, {twitch_name}, {twitch_name_lower}, {title}, {date}, {time}, {datetime}, {game}
+                                            <br>
+                                            Example for "caseoh-03-15-2025.mp4": <code>{streamer_lower}-{date}</code>
+                                        </small>
                                     </div>
                                     <div class="mb-3">
                                         <div class="form-check">
@@ -2048,24 +2055,34 @@
             }
         }
 
-        // Update combine button state
+        // Update combine and delete button states
         function updateCombineButton() {
             const checkboxes = document.querySelectorAll('.conversion-checkbox:checked');
             const combineBtn = document.getElementById('combine-videos-btn');
+            const deleteBtn = document.getElementById('delete-selected-btn');
             
             // Get the jobs data for selected checkboxes
             const selectedJobs = Array.from(checkboxes).map(cb => {
                 const jobId = cb.value;
                 return window.currentConversionsData?.find(c => c.job_id == jobId);
-            }).filter(job => job && job.status === 'completed' && job.output_filename);
+            }).filter(job => job && job.status === 'completed' && job.output_filename && job.output_filename !== 'User Deleted File');
             
-            // Enable button only if 2 or more completed videos are selected
+            // Enable combine button only if 2 or more completed videos are selected
             if (selectedJobs.length >= 2) {
                 combineBtn.disabled = false;
                 combineBtn.innerHTML = `<i class="fas fa-object-group me-1"></i>Combine Selected (${selectedJobs.length})`;
             } else {
                 combineBtn.disabled = true;
                 combineBtn.innerHTML = '<i class="fas fa-object-group me-1"></i>Combine Selected';
+            }
+            
+            // Enable delete button if any jobs are selected
+            if (checkboxes.length > 0) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = `<i class="fas fa-trash me-1"></i>Delete (${checkboxes.length})`;
+            } else {
+                deleteBtn.disabled = true;
+                deleteBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete';
             }
         }
 
@@ -2194,6 +2211,53 @@
             } catch (error) {
                 console.error('Error combining videos:', error);
                 alert('Error combining videos');
+            }
+        }
+
+        // Delete selected conversion jobs
+        async function deleteSelectedConversionJobs() {
+            const checkboxes = document.querySelectorAll('.conversion-checkbox:checked');
+            const jobIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (jobIds.length === 0) {
+                alert('Please select conversion jobs to delete');
+                return;
+            }
+            
+            const confirmMessage = `Are you sure you want to delete ${jobIds.length} conversion job record(s) from the database? This will not delete any files.`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/conversion-jobs/bulk-delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        job_ids: jobIds
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
+                    
+                    // Uncheck all checkboxes
+                    checkboxes.forEach(cb => cb.checked = false);
+                    document.getElementById('select-all-conversions').checked = false;
+                    updateCombineButton();
+                    
+                    // Refresh progress
+                    refreshConversionProgress();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.error);
+                }
+            } catch (error) {
+                console.error('Error deleting conversion jobs:', error);
+                alert('Error deleting conversion jobs');
             }
         }
 
@@ -2390,13 +2454,15 @@
                                 <input type="checkbox" class="conversion-checkbox-modal" value="${index}" onchange="updateBulkDeleteConversionsModalButton(); updateCombineButtonModal();">
                             </td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.filename}">
-                                ${conversion.is_concatenation ? '<i class="fas fa-object-group me-1" title="Combined video"></i>' : ''}${conversion.filename}
+                                ${conversion.is_concatenation ? '<i class="fas fa-object-group me-1 text-primary" title="Combined video"></i>' : ''}${conversion.filename}
                             </td>
                             <td><span class="badge ${statusClass}">${statusText}</span></td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}">${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}</td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.file_size_display}">${conversion.file_size_display}</td>
                             <td>${conversion.schedule_type || 'immediate'}</td>
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.output_filename || '-'}">${conversion.output_filename || '-'}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.output_filename || '-'}">
+                                ${conversion.output_filename === 'User Deleted File' ? '<span class="text-danger"><i class="fas fa-trash me-1"></i>User Deleted File</span>' : (conversion.output_filename || '-')}
+                            </td>
                             <td>
                                 <div class="d-flex gap-1 justify-content-center">
                                     ${actualStatus !== 'completed' && actualStatus !== 'failed' ? 
@@ -2404,7 +2470,7 @@
                                             <i class="fas fa-times"></i>
                                         </button>` : ''
                                     }
-                                    ${actualStatus === 'completed' && conversion.output_filename ? 
+                                    ${actualStatus === 'completed' && conversion.output_filename && conversion.output_filename !== 'User Deleted File' ? 
                                         `<button class="btn btn-sm btn-outline-danger" onclick="deleteConvertedFile(${conversion.job_id})" title="Delete converted file">
                                             <i class="fas fa-trash"></i>
                                         </button>` : ''
@@ -2803,16 +2869,18 @@
                          
                         row.innerHTML = `
                             <td>
-                                <input type="checkbox" class="conversion-checkbox" value="${conversion.job_id}" onchange="updateBulkDeleteConversionsButton(); updateCombineButton();">
+                                <input type="checkbox" class="conversion-checkbox" value="${conversion.job_id}" onchange="updateCombineButton();">
                             </td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.filename}">
-                                ${conversion.is_concatenation ? '<i class="fas fa-object-group me-1" title="Combined video"></i>' : ''}${conversion.filename}
+                                ${conversion.is_concatenation ? '<i class="fas fa-object-group me-1 text-primary" title="Combined video"></i>' : ''}${conversion.filename}
                             </td>
                             <td><span class="badge ${statusClass}">${statusText}</span></td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}">${conversion.progress && conversion.progress.trim() ? conversion.progress : (actualStatus === 'pending' ? ((conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual') ? 'Queued…' : 'Scheduled…') : (actualStatus === 'converting' ? 'Initializing…' : '—'))}</td>
                             <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.file_size_display}">${conversion.file_size_display}</td>
                             <td>${conversion.schedule_type || 'immediate'}</td>
-                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.output_filename || '-'}">${conversion.output_filename || '-'}</td>
+                            <td data-bs-toggle="tooltip" data-bs-placement="top" title="${conversion.output_filename || '-'}">
+                                ${conversion.output_filename === 'User Deleted File' ? '<span class="text-danger"><i class="fas fa-trash me-1"></i>User Deleted File</span>' : (conversion.output_filename || '-')}
+                            </td>
                              <td>
                                  <div class="d-flex gap-1 justify-content-center">
                                      ${actualStatus !== 'completed' && actualStatus !== 'failed' ? 
@@ -2820,7 +2888,7 @@
                                              <i class="fas fa-times"></i>
                                          </button>` : ''
                                      }
-                                     ${actualStatus === 'completed' && conversion.output_filename ? 
+                                     ${actualStatus === 'completed' && conversion.output_filename && conversion.output_filename !== 'User Deleted File' ? 
                                         `<button class="btn btn-sm btn-outline-danger" onclick="deleteConvertedFile(${conversion.job_id})" title="Delete converted file">
                                             <i class="fas fa-trash"></i>
                                         </button>` : ''
@@ -2831,7 +2899,7 @@
                                       </button>
                                  </div>
                              </td>
-                         `;
+                        `;
                          tbody.appendChild(row);
                      });
                      

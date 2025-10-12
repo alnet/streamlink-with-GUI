@@ -2927,13 +2927,20 @@ def get_conversion_progress():
             try:
                 recording = Recording.query.get(job.recording_id) if job.recording_id else None
                 
-                # For concatenation jobs, use custom filename as display name
-                filename = job.custom_filename if not recording else (recording.filename if recording else 'Unknown')
+                # Determine if this is a concatenation job
+                is_concatenation = job.recording_id is None and job.schedule_type == 'immediate'
+                
+                # For concatenation jobs, show "Combined Files Task" as filename
+                if is_concatenation:
+                    filename = "Combined Files Task"
+                else:
+                    filename = recording.filename if recording else 'Unknown'
                 
                 # Get file size if output file exists
                 file_size = None
-                file_size_display = '-'
-                if job.output_filename:
+                file_size_display = 'N/A'
+                
+                if job.output_filename and job.output_filename != "**USER_DELETED**":
                     output_path = os.path.join(converted_path, job.output_filename)
                     if os.path.exists(output_path):
                         file_size = os.path.getsize(output_path)
@@ -2943,13 +2950,20 @@ def get_conversion_progress():
                         else:  # 1GB or more
                             file_size_display = f"{file_size / (1024 * 1024 * 1024):.2f} GB"
                 
+                # Handle output filename display
+                output_filename_display = job.output_filename
+                if job.output_filename == "**USER_DELETED**":
+                    output_filename_display = "User Deleted File"
+                elif not job.output_filename:
+                    output_filename_display = "-"
+                
                 conversions.append({
                     'job_id': job.id,
                     'recording_id': job.recording_id,
                     'filename': filename,
                     'status': job.status,
                     'progress': job.progress,
-                    'output_filename': job.output_filename,
+                    'output_filename': output_filename_display,
                     'file_size': file_size,
                     'file_size_display': file_size_display,
                     'schedule_type': job.schedule_type,
@@ -2958,7 +2972,7 @@ def get_conversion_progress():
                     'completed_at': job.completed_at.isoformat() + 'Z' if job.completed_at else None,
                     'custom_filename': job.custom_filename,
                     'delete_original': job.delete_original,
-                    'is_concatenation': job.recording_id is None and job.schedule_type == 'immediate'
+                    'is_concatenation': is_concatenation
                 })
             except Exception as e:
                 logger.error(f"Error processing conversion job {job.id}: {e}")
@@ -3030,19 +3044,50 @@ def delete_converted_file(job_id):
     try:
         if os.path.exists(output_file):
             os.remove(output_file)
-            # Clear the output_filename since the file no longer exists
-            job.output_filename = None
+            # Set output_filename to special marker instead of None
+            job.output_filename = "**USER_DELETED**"
+            job.progress = "User Deleted File"
             db.session.commit()
             logger.info(f"Deleted converted file: {output_file}")
             return jsonify({'message': 'Converted file deleted successfully'})
         else:
-            # File doesn't exist, but clear the output_filename anyway
-            job.output_filename = None
+            # File doesn't exist, but mark it as deleted anyway
+            job.output_filename = "**USER_DELETED**"
+            job.progress = "User Deleted File"
             db.session.commit()
             return jsonify({'error': 'Converted file not found'}), 404
     except Exception as e:
         logger.error(f"Error deleting converted file {output_file}: {e}")
         return jsonify({'error': f'Failed to delete converted file: {str(e)}'}), 500
+
+@app.route('/api/conversion-jobs/bulk-delete', methods=['POST'])
+def bulk_delete_conversion_jobs():
+    """API endpoint to bulk delete conversion job records from database"""
+    try:
+        data = request.get_json()
+        job_ids = data.get('job_ids', [])
+        
+        if not job_ids:
+            return jsonify({'error': 'No job IDs provided'}), 400
+        
+        deleted_count = 0
+        for job_id in job_ids:
+            job = ConversionJob.query.get(job_id)
+            if job:
+                db.session.delete(job)
+                deleted_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Successfully deleted {deleted_count} conversion job(s)',
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        logger.error(f"Error bulk deleting conversion jobs: {e}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/recordings/<int:recording_id>/remove-from-history', methods=['DELETE'])
 def remove_recording_from_history(recording_id):
@@ -3235,8 +3280,10 @@ def build_output_filename(recording, naming_scheme):
 def build_custom_filename(template, recording):
     """Build custom filename using template variables"""
     streamer = Streamer.query.get(recording.streamer_id)
-    streamer_name = streamer.twitch_name if streamer else 'unknown'  # Use twitch_name instead of username
+    streamer_name = streamer.twitch_name if streamer else 'unknown'
+    streamer_name_lower = streamer_name.lower()  # NEW: lowercase version
     twitch_name = streamer.twitch_name if streamer else 'unknown'
+    twitch_name_lower = twitch_name.lower()  # NEW: lowercase version
     
     # Clean title for filename (remove invalid characters)
     safe_title = "".join(c for c in (recording.title or 'untitled') if c.isalnum() or c in (' ', '-', '_')).rstrip()
@@ -3244,14 +3291,16 @@ def build_custom_filename(template, recording):
     safe_title = safe_title.replace(' ', '_')
     
     # Get date and time from recording start time
-    date_str = recording.started_at.strftime('%Y-%m-%d')
+    date_str = recording.started_at.strftime('%m-%d-%Y')  # Changed to MM-DD-YYYY format
     time_str = recording.started_at.strftime('%H-%M-%S')
     datetime_str = recording.started_at.strftime('%Y-%m-%d_%H-%M-%S')
     
     # Replace template variables
     filename = template
     filename = filename.replace('{streamer}', streamer_name)
+    filename = filename.replace('{streamer_lower}', streamer_name_lower)  # NEW
     filename = filename.replace('{twitch_name}', twitch_name)
+    filename = filename.replace('{twitch_name_lower}', twitch_name_lower)  # NEW
     filename = filename.replace('{title}', safe_title)
     filename = filename.replace('{date}', date_str)
     filename = filename.replace('{time}', time_str)
