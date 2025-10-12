@@ -5,52 +5,178 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Streamlink Web GUI</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
+    <link rel="icon" type="image/png" href="/favicon.png?v=2">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* Toast container */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 9999;
+        }
+        
         /* Status colors */
         .status-online { color: #28a745; }
         .status-offline { color: #6c757d; }
         .status-error { color: #dc3545; }
         .status-recording { color: #ffc107; }
+        .status-completed { color: #28a745; }
+        .status-failed { color: #dc3545; }
         
-        /* Clean functional design */
-        body {
-            background-color: #f8f9fa;
-            font-size: 14px;
-        }
-        
+        /* Functional design - sharp corners, clean separation */
         .card {
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+            border-radius: 0;
             margin-bottom: 1.5rem;
         }
         
         .card-header {
             background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #dee2e6;
+            border-radius: 0;
+            padding: 0.25rem 0.75rem;
             font-weight: 600;
-            font-size: 0.9rem;
+        }
+        
+        .card-header h5 {
+            font-size: 0.875rem;
+            margin-bottom: 0;
+        }
+        
+        .card-header .fas {
+            font-size: 0.75rem;
         }
         
         .card-body {
-            padding: 1rem;
+            padding: 1.25rem;
         }
         
-        /* Compact navbar */
+        /* Clean button styling */
+        .btn {
+            border-radius: 0;
+            font-weight: 500;
+            border: 1px solid #dee2e6;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+        
+        .btn-outline-primary {
+            color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        /* Table styling */
+        .table {
+            border: 1px solid #e9ecef;
+        }
+        
+        .table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        .table td {
+            padding: 0.375rem 0.75rem;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 0.875rem;
+            vertical-align: middle;
+        }
+        
+        /* Prevent wrapping in all tables */
+        .table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 0;
+        }
+        
+        /* Stats cards */
+        .stats-card {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 0;
+            height: 120px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stats-card .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1.25rem;
+        }
+        
+        .stats-card .card-title {
+            color: #6c757d;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stats-card h3 {
+            color: #212529;
+            font-weight: 700;
+            margin-bottom: 0;
+        }
+        
+        .stats-card .fa-2x {
+            color: #007bff;
+        }
+        
+        /* Navigation styling */
         .navbar {
-            background: #fff !important;
-            border-bottom: 1px solid #dee2e6 !important;
-            padding: 0.5rem 1rem !important;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+            background: #ffffff !important;
+            border-bottom: 2px solid #dee2e6 !important;
+            padding: 0.05rem 0 !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            min-height: 2rem !important;
+            max-height: 2rem !important;
+            height: 2rem !important;
+            line-height: 1 !important;
+            display: flex !important;
+            align-items: center !important;
         }
         
         .navbar-brand {
-            font-weight: 600;
+            font-weight: 600 !important;
             color: #212529 !important;
-            font-size: 1.1rem;
+            font-size: 1.1rem !important;
+            letter-spacing: 0.5px !important;
+            line-height: 1 !important;
+            padding: 0.05rem 0 !important;
+            margin: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            height: 2rem !important;
+            vertical-align: middle !important;
         }
         
         .navbar-brand .fas {
@@ -60,163 +186,77 @@
         
         .nav-link {
             color: #6c757d !important;
-            font-weight: 500;
-            padding: 0.5rem 1rem !important;
-            transition: all 0.2s;
+            font-weight: 500 !important;
+            padding: 0.05rem 0.5rem !important;
+            margin: 0 0.05rem !important;
+            transition: all 0.2s ease !important;
+            border-bottom: 2px solid transparent !important;
+            font-size: 1rem !important;
+            line-height: 1 !important;
+            cursor: pointer;
         }
         
         .nav-link:hover, .nav-link.active {
             color: #007bff !important;
+            border-bottom-color: #007bff;
             background-color: #f8f9fa;
         }
         
         .navbar-text {
             color: #28a745 !important;
-            font-weight: 500;
-            font-size: 0.9rem;
+            font-weight: 500 !important;
+            font-size: 0.9rem !important;
+            line-height: 1 !important;
+            padding: 0.05rem 0 !important;
+            margin: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            height: 2rem !important;
+            vertical-align: middle !important;
         }
         
         .navbar-text .fas {
+            color: #28a745;
             animation: pulse 2s infinite;
         }
         
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
+            0% { opacity: 1; }
             50% { opacity: 0.5; }
-        }
-        
-        /* Buttons */
-        .btn {
-            border-radius: 4px;
-            font-weight: 500;
-            font-size: 0.875rem;
-        }
-        
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.8rem;
-        }
-        
-        /* Tables */
-        .table {
-            font-size: 0.875rem;
-        }
-        
-        .table th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            padding: 0.5rem;
-            font-size: 0.85rem;
-            white-space: nowrap;
-        }
-        
-        .table td {
-            padding: 0.5rem;
-            vertical-align: middle;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        /* Stats cards */
-        .stats-card {
-            background: #fff;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            height: 110px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .stats-card .card-body {
-            padding: 1rem;
-        }
-        
-        .stats-card .card-title {
-            color: #6c757d;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-        
-        .stats-card h3 {
-            color: #212529;
-            font-weight: 700;
-            font-size: 1.75rem;
-            margin: 0;
-        }
-        
-        .stats-card .fa-2x {
-            color: #007bff;
-            font-size: 1.5rem;
-        }
-        
-        /* Progress animations */
-        .progress {
-            height: 20px;
-            background-color: #e9ecef;
-        }
-        
-        .progress-bar {
-            transition: width 0.3s ease;
-            font-size: 0.75rem;
-        }
-        
-        .progress-bar.progress-bar-animated {
-            animation: progress-bar-stripes 1s linear infinite;
+            100% { opacity: 1; }
         }
         
         /* Form controls */
         .form-control, .form-select {
-            border-radius: 4px;
+            border-radius: 0;
             border: 1px solid #ced4da;
-            font-size: 0.875rem;
         }
         
         .form-control:focus, .form-select:focus {
             border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         }
         
-        /* Badges */
-        .badge {
-            border-radius: 4px;
-            font-weight: 500;
-            padding: 0.35rem 0.65rem;
-        }
-        
-        /* Modals */
-        .modal-content {
-            border-radius: 4px;
-        }
-        
-        .modal-header {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        /* Tooltips */
-        .tooltip {
-            font-size: 0.8rem;
-        }
-        
-        /* Loading spinner */
-        .spinner-border-sm {
-            width: 1rem;
-            height: 1rem;
-            border-width: 0.15em;
-        }
-        
-        /* Conversion tabs */
+        /* List group for tabs */
         .list-group-item {
             border-radius: 0;
-            padding: 0.75rem 1rem;
-            font-size: 0.875rem;
-            transition: all 0.2s;
+            border: 1px solid #dee2e6;
+            border-bottom: none;
+            color: #6c757d;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .list-group-item:last-child {
+            border-bottom: 1px solid #dee2e6;
         }
         
         .list-group-item.active {
             background-color: #007bff;
             border-color: #007bff;
+            color: #ffffff;
         }
         
         .list-group-item:hover:not(.active) {
@@ -224,84 +264,136 @@
             color: #007bff;
         }
         
-        /* Utility */
+        /* Tab content */
+        .tab-content {
+            border: 1px solid #dee2e6;
+            border-top: none;
+        }
+        
+        .tab-pane {
+            padding: 1.5rem;
+        }
+        
+        /* Badge styling */
+        .badge {
+            border-radius: 0;
+            font-weight: 500;
+        }
+        
+        /* Modal styling */
+        .modal-content {
+            border-radius: 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .modal-header, .modal-footer {
+            background-color: #f8f9fa;
+            border-radius: 0;
+        }
+        
+        .modal-header {
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .modal-footer {
+            border-top: 2px solid #dee2e6;
+        }
+        
+        /* Utility classes */
         .refresh-btn {
             cursor: pointer;
-            transition: transform 0.3s;
+            transition: transform 0.2s;
         }
         
         .refresh-btn:hover {
             transform: rotate(180deg);
         }
         
-        /* Container */
+        .form-control-plaintext {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0;
+            padding: 0.375rem 0.75rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+        
+        /* Pagination */
+        .pagination .page-link {
+            border-radius: 0;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+        }
+        
+        .pagination .page-item.active .page-link {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        
+        /* Background */
+        body {
+            background-color: #f8f9fa;
+        }
+        
         .container-fluid {
-            max-width: 1400px;
-            padding: 1.5rem;
-        }
-        
-        /* Toast notifications */
-        .toast-container {
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            z-index: 1050;
-        }
-        
-        .toast {
-            background-color: #fff;
-            border-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 <body>
     <!-- Toast Container -->
-    <div class="toast-container"></div>
+    <div class="toast-container" id="toast-container"></div>
 
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-video"></i>Streamlink Web GUI
+            <a class="navbar-brand">
+                <i class="fas fa-video me-2"></i>Streamlink Web GUI
             </a>
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#" onclick="showTab('dashboard', event)">
+                    <a class="nav-link active" data-tab="dashboard">
                         <i class="fas fa-tachometer-alt me-1"></i>Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" onclick="showTab('settings', event)">
-                        <i class="fas fa-cog me-1"></i>Settings
+                    <a class="nav-link" data-tab="settings">
+                        <i class="fas fa-cog me-1"></i>Twitch Settings
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" onclick="showTab('conversion', event)">
+                    <a class="nav-link" data-tab="conversion">
                         <i class="fas fa-exchange-alt me-1"></i>Conversion
                     </a>
                 </li>
             </ul>
-            <span class="navbar-text">
-                <i class="fas fa-circle text-success me-1"></i>System Online
-            </span>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <i class="fas fa-circle text-success me-1"></i>System Online
+                </span>
+            </div>
         </div>
     </nav>
 
-    <div class="container-fluid mt-3">
+    <div class="container-fluid mt-4">
         <!-- Dashboard Tab -->
-        <div id="dashboard-tab">
+        <div id="dashboard-tab" class="tab-content-main">
             <!-- Stats Cards -->
-            <div class="row mb-3">
+            <div class="row mb-4">
                 <div class="col-md-3">
                     <div class="card stats-card">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between">
                                 <div>
                                     <h6 class="card-title">Active Streamers</h6>
                                     <h3 id="active-streamers">0</h3>
                                 </div>
-                                <i class="fas fa-users fa-2x"></i>
+                                <div class="align-self-center">
+                                    <i class="fas fa-users fa-2x"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -309,12 +401,14 @@
                 <div class="col-md-3">
                     <div class="card stats-card">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between">
                                 <div>
                                     <h6 class="card-title">Total Recordings</h6>
                                     <h3 id="total-recordings">0</h3>
                                 </div>
-                                <i class="fas fa-film fa-2x"></i>
+                                <div class="align-self-center">
+                                    <i class="fas fa-film fa-2x"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -322,12 +416,14 @@
                 <div class="col-md-3">
                     <div class="card stats-card">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between">
                                 <div>
                                     <h6 class="card-title">Today's Recordings</h6>
                                     <h3 id="recent-recordings">0</h3>
                                 </div>
-                                <i class="fas fa-calendar-day fa-2x"></i>
+                                <div class="align-self-center">
+                                    <i class="fas fa-calendar-day fa-2x"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -335,12 +431,14 @@
                 <div class="col-md-3">
                     <div class="card stats-card">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between">
                                 <div>
                                     <h6 class="card-title">Disk Space</h6>
                                     <div class="small" id="disk-space">Loading...</div>
                                 </div>
-                                <i class="fas fa-hdd fa-2x"></i>
+                                <div class="align-self-center">
+                                    <i class="fas fa-hdd fa-2x"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -352,19 +450,21 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-users me-2"></i>Streamers Management</span>
+                            <h5 class="mb-0">
+                                <i class="fas fa-users me-2"></i>Streamers Management
+                            </h5>
                             <div>
                                 <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshStatus()">
-                                    <i class="fas fa-sync-alt refresh-btn"></i>
+                                    <i class="fas fa-sync-alt refresh-btn"></i> Refresh Status
                                 </button>
                                 <button class="btn btn-sm btn-primary" onclick="showAddStreamerModal()">
-                                    <i class="fas fa-plus me-1"></i>Add
+                                    <i class="fas fa-plus me-1"></i>Add Streamer
                                 </button>
                             </div>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-hover table-sm">
+                                <table class="table table-hover">
                                     <thead>
                                         <tr>
                                             <th>Display Name</th>
@@ -376,7 +476,9 @@
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="streamers-table"></tbody>
+                                    <tbody id="streamers-table">
+                                        <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
@@ -384,59 +486,76 @@
                 </div>
             </div>
 
-            <!-- Recordings -->
+            <!-- Active and Recent Recordings -->
             <div class="row">
-                <div class="col-lg-6">
+                <div class="col-lg-6 mb-4">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-broadcast-tower me-2"></i>Active Recordings</span>
+                            <h5 class="mb-0">
+                                <i class="fas fa-broadcast-tower me-2"></i>Active Recordings
+                            </h5>
                             <div>
-                                <button class="btn btn-sm btn-outline-primary me-2" onclick="showActiveRecordingsModal()">View All</button>
-                                <button class="btn btn-sm btn-outline-primary" onclick="loadActiveRecordings()">
-                                    <i class="fas fa-sync-alt refresh-btn"></i>
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="showActiveRecordingsModal()">
+                                    View All
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshActiveRecordings()">
+                                    <i class="fas fa-sync-alt refresh-btn"></i> Refresh
                                 </button>
                             </div>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-hover table-sm">
+                                <table class="table table-hover">
                                     <thead>
                                         <tr>
                                             <th>Streamer</th>
-                                            <th>Title</th>
+                                            <th>Date</th>
+                                            <th>Stream Title</th>
                                             <th>Duration</th>
+                                            <th>Status</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="active-recordings-list"></tbody>
+                                    <tbody id="active-recordings-list">
+                                        <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-6">
+
+                <div class="col-lg-6 mb-4">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-history me-2"></i>Recent Recordings</span>
+                            <h5 class="mb-0">
+                                <i class="fas fa-history me-2"></i>Recent Recordings
+                            </h5>
                             <div>
-                                <button class="btn btn-sm btn-outline-primary me-2" onclick="showRecordingsModal()">View All</button>
-                                <button class="btn btn-sm btn-outline-primary" onclick="loadRecentRecordings()">
-                                    <i class="fas fa-sync-alt refresh-btn"></i>
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="showRecordingsModal()">
+                                    View All
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshRecentRecordings()">
+                                    <i class="fas fa-sync-alt refresh-btn"></i> Refresh
                                 </button>
                             </div>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-hover table-sm">
+                                <table class="table table-hover">
                                     <thead>
                                         <tr>
                                             <th>Streamer</th>
-                                            <th>Title</th>
+                                            <th>Date</th>
+                                            <th>Stream Title</th>
+                                            <th>Duration</th>
                                             <th>Status</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="recent-recordings-list"></tbody>
+                                    <tbody id="recent-recordings-list">
+                                        <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
@@ -446,164 +565,275 @@
         </div>
 
         <!-- Settings Tab -->
-        <div id="settings-tab" style="display: none;">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fab fa-twitch me-2"></i>Twitch Authentication
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Client ID</label>
-                            <input id="tw-client-id" type="text" class="form-control" placeholder="Your Client ID">
+        <div id="settings-tab" class="tab-content-main" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fab fa-twitch me-2"></i>Twitch Authentication
+                            </h5>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Client Secret</label>
-                            <input id="tw-client-secret" type="password" class="form-control" placeholder="Your Client Secret">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Client ID</label>
+                                    <input id="tw-client-id" type="text" class="form-control" placeholder="e.g. abc123xyz" autocomplete="off">
+                                    <div id="client-id-status" class="form-text text-success" style="display: none;">
+                                        <i class="fas fa-check-circle me-1"></i>Client ID has been saved
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Client Secret</label>
+                                    <input id="tw-client-secret" type="password" class="form-control" placeholder="••••••••" autocomplete="off">
+                                    <div id="client-secret-status" class="form-text text-success" style="display: none;">
+                                        <i class="fas fa-check-circle me-1"></i>Client Secret has been saved
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">OAuth Token</label>
+                                    <input id="tw-oauth-token" type="password" class="form-control" placeholder="oauth:xxxxxxxx or token" autocomplete="off">
+                                    <div id="oauth-token-status" class="form-text text-success" style="display: none;">
+                                        <i class="fas fa-check-circle me-1"></i>OAuth Token has been saved
+                                    </div>
+                                    <small class="text-muted">Paste your token (with or without the <code>oauth:</code> prefix)</small>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Extra Twitch Flags (optional)</label>
+                                    <input id="tw-extra-flags" type="text" class="form-control" placeholder="e.g. --twitch-low-latency" autocomplete="off">
+                                    <small class="text-muted">Pass raw flags to Streamlink</small>
+                                </div>
+                            </div>
+                            <div class="mt-3 d-flex gap-2">
+                                <button class="btn btn-primary" onclick="saveTwitchAuth()"><i class="fas fa-save me-1"></i>Save</button>
+                                <button class="btn btn-outline-secondary" onclick="loadTwitchAuth()"><i class="fas fa-sync me-1"></i>Reload</button>
+                            </div>
                         </div>
-                        <div class="col-md-12">
-                            <label class="form-label">OAuth Token</label>
-                            <input id="tw-oauth-token" type="password" class="form-control" placeholder="oauth:xxxxxxxx">
-                            <small class="text-muted">Paste with or without oauth: prefix</small>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label">Extra Flags (optional)</label>
-                            <input id="tw-extra-flags" type="text" class="form-control" placeholder="--twitch-low-latency">
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <button class="btn btn-primary" onclick="saveTwitchAuth()">
-                            <i class="fas fa-save me-1"></i>Save
-                        </button>
-                        <button class="btn btn-outline-secondary" onclick="loadTwitchAuth()">
-                            <i class="fas fa-sync me-1"></i>Reload
-                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Conversion Tab -->
-        <div id="conversion-tab" style="display: none;">
+        <div id="conversion-tab" class="tab-content-main" style="display: none;">
             <div class="row">
                 <div class="col-md-2">
-                    <div class="list-group" role="tablist">
-                        <a class="list-group-item list-group-item-action active" href="#conversion-status" onclick="showConversionSubTab('status', event)">
-                            <i class="fas fa-tasks me-2"></i>Status
+                    <div class="list-group" id="conversion-tabs" role="tablist">
+                        <a class="list-group-item list-group-item-action active" data-conversion-tab="conversion-status-content">
+                            <i class="fas fa-tasks me-2"></i>Conversion Status
                         </a>
-                        <a class="list-group-item list-group-item-action" href="#conversion-settings" onclick="showConversionSubTab('settings', event)">
-                            <i class="fas fa-cog me-2"></i>Settings
+                        <a class="list-group-item list-group-item-action" data-conversion-tab="conversion-settings-content">
+                            <i class="fas fa-cog me-2"></i>Conversion Settings
                         </a>
-                        <a class="list-group-item list-group-item-action" href="#conversion-schedule" onclick="showConversionSubTab('schedule', event)">
-                            <i class="fas fa-clock me-2"></i>Schedule
+                        <a class="list-group-item list-group-item-action" data-conversion-tab="scheduled-conversions-content">
+                            <i class="fas fa-clock me-2"></i>Scheduled Conversions
                         </a>
                     </div>
                 </div>
+
                 <div class="col-md-10">
-                    <!-- Status Tab -->
-                    <div id="conversion-status" class="conversion-subtab">
-                        <div class="card mb-3">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <span><i class="fas fa-film me-2"></i>Available Recordings</span>
-                                <div>
-                                    <button class="btn btn-sm btn-primary" onclick="convertSelected()" id="convert-btn" disabled>
-                                        <i class="fas fa-cog me-1"></i>Convert
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="loadRecordingsForConversion()">
-                                        <i class="fas fa-sync-alt refresh-btn"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-hover table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
-                                                <th>Streamer</th>
-                                                <th>Title</th>
-                                                <th>Duration</th>
-                                                <th>Size</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="conversion-recordings-list"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <span><i class="fas fa-spinner me-2"></i>Conversion Progress</span>
-                                <button class="btn btn-sm btn-outline-primary" onclick="loadConversionProgress()">
-                                    <i class="fas fa-sync-alt refresh-btn"></i>
-                                </button>
-                            </div>
-                            <div class="card-body">
-                                <div id="conversion-progress-list"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Settings Tab -->
-                    <div id="conversion-settings" class="conversion-subtab" style="display: none;">
-                        <div class="card">
-                            <div class="card-header">
-                                <i class="fas fa-cog me-2"></i>Conversion Settings
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-3">
-                                    <label class="form-label">FFmpeg Preset</label>
-                                    <select class="form-select" id="ffmpeg-preset"></select>
-                                    <small class="text-muted" id="preset-help"></small>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Output Filename Template</label>
-                                    <input type="text" class="form-control" id="filename-template" placeholder="{streamer}_{date}_{title}">
-                                    <small class="text-muted">Variables: {streamer}, {date}, {title}, {time}</small>
-                                </div>
-                                <div class="mb-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="delete-original">
-                                        <label class="form-check-label" for="delete-original">
-                                            Delete original files after conversion
-                                        </label>
+                    <div class="tab-content" id="conversion-tab-content">
+                        <!-- Conversion Status Tab -->
+                        <div class="tab-pane fade show active" id="conversion-status-content">
+                            <!-- Recordings for Conversion -->
+                            <div class="card mb-4" style="margin-top: 0;">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-film me-2"></i>Recordings for Conversion
+                                    </h5>
+                                    <div>
+                                        <button class="btn btn-sm btn-primary me-2" onclick="convertSelectedRecordings()" id="convert-btn" disabled>
+                                            <i class="fas fa-cog me-1"></i>Convert Selected
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary me-2" onclick="showRecordingsForConversionModal()">
+                                            View All
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="refreshRecordingsForConversion()">
+                                            <i class="fas fa-sync-alt refresh-btn"></i> Refresh
+                                        </button>
                                     </div>
                                 </div>
-                                <button class="btn btn-primary" onclick="saveConversionSettings()">
-                                    <i class="fas fa-save me-1"></i>Save Settings
-                                </button>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th><input type="checkbox" id="select-all-recordings" onchange="toggleAllRecordings()"></th>
+                                                    <th>Streamer</th>
+                                                    <th>Title</th>
+                                                    <th>Status</th>
+                                                    <th>Started</th>
+                                                    <th>Duration</th>
+                                                    <th>File Size</th>
+                                                    <th>Conversion Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="conversion-recordings-table">
+                                                <tr><td colspan="8" class="text-center text-muted">Loading...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Conversion Progress -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-tasks me-2"></i>Conversion Progress
+                                    </h5>
+                                    <div>
+                                        <button class="btn btn-sm btn-primary me-2" id="combine-videos-btn" onclick="combineSelectedVideos()" disabled>
+                                            <i class="fas fa-object-group me-1"></i>Combine Selected
+                                        </button>
+                                        <button class="btn btn-sm btn-danger me-2" id="delete-selected-btn" onclick="deleteSelectedConversionJobs()" disabled>
+                                            <i class="fas fa-trash me-1"></i>Delete
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary me-2" onclick="showConversionProgressModal()">
+                                            View All
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="refreshConversionProgress()">
+                                            <i class="fas fa-sync-alt refresh-btn"></i> Refresh
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th><input type="checkbox" id="select-all-conversions" onchange="toggleAllConversions()"></th>
+                                                    <th>Filename</th>
+                                                    <th>Status</th>
+                                                    <th>Progress</th>
+                                                    <th>File Size</th>
+                                                    <th>Schedule Type</th>
+                                                    <th>Output File</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="conversion-progress-list">
+                                                <tr><td colspan="8" class="text-center text-muted">Loading...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Schedule Tab -->
-                    <div id="conversion-schedule" class="conversion-subtab" style="display: none;">
-                        <div class="card">
-                            <div class="card-header">
-                                <i class="fas fa-clock me-2"></i>Schedule Conversion
+                        <!-- Conversion Settings Tab -->
+                        <div class="tab-pane fade" id="conversion-settings-content">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-cog me-2"></i>Conversion Settings
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="conversion-settings-form">
+                                        <div class="mb-3">
+                                            <label for="ffmpegPreset" class="form-label fw-bold">FFmpeg Preset</label>
+                                            <select class="form-select" id="ffmpegPreset">
+                                                <option value="default_h264_aac">Default (H.264/AAC)</option>
+                                            </select>
+                                            <small id="ffmpegPresetHelp" class="form-text text-muted"></small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Input Directory</label>
+                                            <div class="form-control-plaintext" id="conversion-volume-path-display">Loading...</div>
+                                            <small class="form-text text-muted">Directory containing TS files</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Output Directory</label>
+                                            <div class="form-control-plaintext" id="output-volume-path-display">Loading...</div>
+                                            <small class="form-text text-muted">Directory for converted MP4 files</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="custom-filename-template" class="form-label fw-bold">File Naming Scheme</label>
+                                            <input type="text" class="form-control" id="custom-filename-template" placeholder="{streamer}_{date}_{title}">
+                                            <small class="form-text text-muted">
+                                                Use variables: {streamer}, {streamer_lower}, {twitch_name}, {date}, {time}, {datetime}, {title}, {game}
+                                            </small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="delete-original-after-conversion">
+                                                <label class="form-check-label" for="delete-original-after-conversion">
+                                                    Delete original TS files after successful conversion
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" onclick="saveConversionSettings()">
+                                            <i class="fas fa-save me-1"></i>Save Settings
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <div class="mb-3">
-                                    <label class="form-label">Schedule Type</label>
-                                    <select class="form-select" id="schedule-type">
-                                        <option value="immediate">Immediate</option>
-                                        <option value="scheduled">One-Time</option>
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                    </select>
+                        </div>
+
+                        <!-- Scheduled Conversions Tab -->
+                        <div class="tab-pane fade" id="scheduled-conversions-content">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-clock me-2"></i>Scheduled Conversions
+                                    </h5>
                                 </div>
-                                <div class="mb-3" id="schedule-time-group" style="display:none;">
-                                    <label class="form-label">Schedule Time</label>
-                                    <input type="datetime-local" class="form-control" id="schedule-time">
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="schedule-type" class="form-label fw-bold">Schedule Type</label>
+                                        <select class="form-select" id="schedule-type" onchange="toggleScheduleOptions()">
+                                            <option value="immediate">Immediate (Convert Now)</option>
+                                            <option value="scheduled">One-Time</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3" id="scheduled-time-group">
+                                        <label for="scheduled-time" class="form-label fw-bold">Scheduled Time</label>
+                                        <input type="datetime-local" class="form-control" id="scheduled-time">
+                                        <small class="form-text text-muted">Select when this conversion should run</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="conversion-task-name" class="form-label fw-bold">Task Name</label>
+                                        <input type="text" class="form-control" id="conversion-task-name" placeholder="e.g., Daily 5AM Conversion">
+                                        <small class="form-text text-muted">A friendly name to identify this scheduled task</small>
+                                    </div>
+                                    <button type="button" class="btn btn-primary" onclick="saveScheduledConversion()">
+                                        <i class="fas fa-save me-1"></i>Create Scheduled Task
+                                    </button>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Task Name</label>
-                                    <input type="text" class="form-control" id="task-name" placeholder="e.g., Daily 5AM Conversion">
+                            </div>
+
+                            <!-- Scheduled Tasks List -->
+                            <div class="card mt-4">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-clock me-2"></i>Active Scheduled Tasks
+                                    </h5>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="loadScheduledTasks()">
+                                        <i class="fas fa-sync-alt refresh-btn"></i> Refresh
+                                    </button>
                                 </div>
-                                <button class="btn btn-primary" onclick="saveSchedule()">
-                                    <i class="fas fa-save me-1"></i>Create Schedule
-                                </button>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Task Name</th>
+                                                    <th>Schedule Type</th>
+                                                    <th>Scheduled Time</th>
+                                                    <th>Next Run</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="scheduled-tasks-list">
+                                                <tr><td colspan="6" class="text-center text-muted">No scheduled tasks</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -613,46 +843,148 @@
     </div>
 
     <!-- Modals -->
+    <!-- Add Streamer Modal -->
     <div class="modal fade" id="addStreamerModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add Streamer</h5>
+                    <h5 class="modal-title">Add New Streamer</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Display Name</label>
-                        <input type="text" class="form-control" id="add-display-name">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Twitch Name</label>
-                        <input type="text" class="form-control" id="add-twitch-name">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Quality</label>
-                        <select class="form-select" id="add-quality">
-                            <option value="best">Best</option>
-                            <option value="1080p60">1080p60</option>
-                            <option value="1080p">1080p</option>
-                            <option value="720p60">720p60</option>
-                            <option value="720p">720p</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Check Interval (seconds)</label>
-                        <input type="number" class="form-control" id="add-timer" value="360" min="15">
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="add-active" checked>
-                            <label class="form-check-label" for="add-active">Active</label>
+                    <form id="addStreamerForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Display Name</label>
+                            <input type="text" class="form-control" id="username" required>
                         </div>
-                    </div>
+                        <div class="mb-3">
+                            <label for="twitchName" class="form-label">Twitch Name</label>
+                            <input type="text" class="form-control" id="twitchName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quality" class="form-label">Quality</label>
+                            <select class="form-select" id="quality">
+                                <option value="best">Best</option>
+                                <option value="1080p60">1080p60</option>
+                                <option value="1080p">1080p</option>
+                                <option value="720p60">720p60</option>
+                                <option value="720p">720p</option>
+                                <option value="480p">480p</option>
+                                <option value="360p">360p</option>
+                                <option value="worst">Worst</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="timer" class="form-label">Check Interval (seconds)</label>
+                            <input type="number" class="form-control" id="timer" value="360" min="15">
+                            <div class="form-text">Minimum 15 seconds recommended</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isActive" checked>
+                                <label class="form-check-label" for="isActive">
+                                    Active (start recording immediately)
+                                </label>
+                            </div>
+                        </div>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="addStreamer()">Add</button>
+                    <button type="button" class="btn btn-primary" onclick="addStreamer()">Add Streamer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Streamer Modal -->
+    <div class="modal fade" id="editStreamerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Streamer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editStreamerForm">
+                        <input type="hidden" id="editStreamerId">
+                        <div class="mb-3">
+                            <label for="editUsername" class="form-label">Display Name</label>
+                            <input type="text" class="form-control" id="editUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editTwitchName" class="form-label">Twitch Name</label>
+                            <input type="text" class="form-control" id="editTwitchName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editQuality" class="form-label">Quality</label>
+                            <select class="form-select" id="editQuality">
+                                <option value="best">Best</option>
+                                <option value="1080p60">1080p60</option>
+                                <option value="1080p">1080p</option>
+                                <option value="720p60">720p60</option>
+                                <option value="720p">720p</option>
+                                <option value="480p">480p</option>
+                                <option value="360p">360p</option>
+                                <option value="worst">Worst</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editTimer" class="form-label">Check Interval (seconds)</label>
+                            <input type="number" class="form-control" id="editTimer" min="15">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editIsActive">
+                                <label class="form-check-label" for="editIsActive">Active</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="updateStreamer()">Update Streamer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Recordings Modal -->
+    <div class="modal fade" id="recordingsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">All Recordings</h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-danger" id="bulk-delete-btn" onclick="bulkDeleteRecordings()" disabled>
+                            <i class="fas fa-trash me-1"></i>Delete Selected
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all-recordings-modal" onchange="toggleAllRecordingsModal()"></th>
+                                    <th>Streamer</th>
+                                    <th>Title</th>
+                                    <th>Status</th>
+                                    <th>Started</th>
+                                    <th>Duration</th>
+                                    <th>File Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordings-table">
+                                <tr><td colspan="8" class="text-center text-muted">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav>
+                        <ul class="pagination justify-content-center" id="recordings-pagination"></ul>
+                    </nav>
                 </div>
             </div>
         </div>
@@ -660,37 +992,68 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Global state
-        const state = {
-            refreshInterval: null,
-            conversionPoll: null,
-            currentPage: 1
-        };
-
         // Toast notification system
         function showToast(message, type = 'success') {
-            const container = document.querySelector('.toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast align-items-center text-white bg-${type} border-0`;
-            toast.setAttribute('role', 'alert');
-            toast.innerHTML = `
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            const toastContainer = document.getElementById('toast-container');
+            const toastId = 'toast-' + Date.now();
+            
+            const bgClass = type === 'success' ? 'bg-success' : 
+                           type === 'error' ? 'bg-danger' : 
+                           type === 'warning' ? 'bg-warning' : 'bg-info';
+            
+            const toastHtml = `
+                <div class="toast align-items-center text-white ${bgClass} border-0" role="alert" id="${toastId}">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
                 </div>
             `;
-            container.appendChild(toast);
-            const bsToast = new bootstrap.Toast(toast);
-            bsToast.show();
-            toast.addEventListener('hidden.bs.toast', () => toast.remove());
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+            toast.show();
+            
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
         }
 
-        // HTML escape
-        const escapeHTML = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        // Global variables
+        let currentPage = 1;
+        const perPage = 6;
+        let mainRefreshInterval;
+        let conversionPoll;
+        window.currentRecordingsData = [];
+        window.currentConversionsData = [];
+        const deletedFiles = new Set();
+
+        // HTML escaping
+        const escapeHTML = s => String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
 
         // Date formatting
-        function formatDate(dateString) {
-            return new Date(dateString).toLocaleString('en-US', {
+        function formatDateEastern(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function formatDateEasternCompact(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
                 timeZone: 'America/New_York',
                 month: '2-digit',
                 day: '2-digit',
@@ -699,37 +1062,128 @@
             });
         }
 
-        // File size formatting
-        function formatFileSize(bytes) {
-            if (!bytes) return '-';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+        // Recording status helpers
+        function getRecordingStatus(recording) {
+            if (recording.filename && recording.filename.endsWith('.part')) {
+                return 'Failed/Stopped';
+            }
+            if (recording.status === 'deleted') {
+                return 'Deleted';
+            }
+            return recording.status || 'Unknown';
         }
 
-        // Tab management
-        function showTab(tabName, event) {
-            event?.preventDefault();
-            document.querySelectorAll('[id$="-tab"]').forEach(t => t.style.display = 'none');
-            document.getElementById(tabName + '-tab').style.display = 'block';
-            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            event?.target.classList.add('active');
-
-            if (tabName === 'conversion') {
-                loadRecordingsForConversion();
-                loadConversionProgress();
-            } else if (tabName === 'settings') {
-                loadTwitchAuth();
+        function getStatusBadgeClass(status) {
+            switch (status.toLowerCase()) {
+                case 'completed': return 'bg-success';
+                case 'failed/stopped': return 'bg-danger';
+                case 'deleted': return 'bg-dark';
+                case 'recording': return 'bg-warning';
+                default: return 'bg-secondary';
             }
         }
 
-        function showConversionSubTab(subTab, event) {
-            event?.preventDefault();
-            document.querySelectorAll('.conversion-subtab').forEach(t => t.style.display = 'none');
-            document.getElementById('conversion-' + subTab).style.display = 'block';
-            document.querySelectorAll('.list-group-item').forEach(l => l.classList.remove('active'));
-            event?.target.classList.add('active');
+        // Format helpers
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Tab management
+        document.addEventListener('DOMContentLoaded', function() {
+            // Main navigation tabs
+            document.querySelectorAll('.nav-link[data-tab]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const tabName = this.getAttribute('data-tab');
+                    showTab(tabName);
+                });
+            });
+
+            // Conversion sub-tabs
+            document.querySelectorAll('[data-conversion-tab]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const tabName = this.getAttribute('data-conversion-tab');
+                    
+                    // Update active states
+                    document.querySelectorAll('[data-conversion-tab]').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Show/hide content
+                    document.querySelectorAll('#conversion-tab-content .tab-pane').forEach(pane => {
+                        pane.classList.remove('show', 'active');
+                    });
+                    document.getElementById(tabName).classList.add('show', 'active');
+                });
+            });
+
+            // Initialize
+            loadStreamers();
+            loadRecentRecordings();
+            loadStatus();
+            loadActiveRecordings();
+            startAutoRefresh();
+            
+            // Page visibility handling
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    if (mainRefreshInterval) {
+                        clearInterval(mainRefreshInterval);
+                        mainRefreshInterval = null;
+                    }
+                } else {
+                    loadStreamers();
+                    loadRecentRecordings();
+                    loadStatus();
+                    loadActiveRecordings();
+                    startAutoRefresh();
+                }
+            });
+        });
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content-main').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').style.display = 'block';
+            
+            // Update navigation
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            document.querySelector(`.nav-link[data-tab="${tabName}"]`).classList.add('active');
+            
+            // Load tab-specific data
+            if (tabName === 'conversion') {
+                loadRecordingsForConversion();
+                loadConversionSettings();
+                refreshConversionProgress();
+                loadScheduledTasks();
+            } else if (tabName === 'settings') {
+                loadTwitchAuth();
+            } else if (tabName === 'dashboard') {
+                loadStreamers();
+                loadRecentRecordings();
+                loadStatus();
+                loadActiveRecordings();
+            }
+        }
+
+        function startAutoRefresh() {
+            if (mainRefreshInterval) clearInterval(mainRefreshInterval);
+            mainRefreshInterval = setInterval(function() {
+                if (!document.hidden) {
+                    loadStreamers();
+                    loadRecentRecordings();
+                    loadStatus();
+                    loadActiveRecordings();
+                }
+            }, 30000);
         }
 
         // Load streamers
@@ -739,30 +1193,131 @@
                 const streamers = await response.json();
                 const tbody = document.getElementById('streamers-table');
                 
-                tbody.innerHTML = streamers.map(s => `
-                    <tr>
-                        <td>${escapeHTML(s.username)}</td>
-                        <td>${escapeHTML(s.twitch_name)}</td>
-                        <td><span class="status-${(s.status || 'offline').toLowerCase()}">
-                            <i class="fas fa-circle"></i> ${s.status || 'OFFLINE'}
-                        </span></td>
-                        <td>${s.quality}</td>
-                        <td>${s.timer}</td>
-                        <td><span class="badge ${s.is_active ? 'bg-success' : 'bg-secondary'}">
-                            ${s.is_active ? 'Active' : 'Inactive'}
-                        </span></td>
+                if (streamers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No streamers configured</td></tr>';
+                    return;
+                }
+                
+                // Check status for each streamer
+                for (const streamer of streamers) {
+                    try {
+                        const statusResponse = await fetch(`/api/streamers/${streamer.id}/check`);
+                        const statusData = await statusResponse.json();
+                        streamer.status = statusData.status;
+                    } catch (error) {
+                        streamer.status = 'ERROR';
+                    }
+                }
+                
+                tbody.innerHTML = '';
+                streamers.forEach(streamer => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${escapeHTML(streamer.username)}</td>
+                        <td>${escapeHTML(streamer.twitch_name)}</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="editStreamer(${s.id})">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteStreamer(${s.id})">
+                            <span class="status-${(streamer.status || 'offline').toLowerCase()}">
+                                <i class="fas fa-circle me-1"></i>${streamer.status || 'OFFLINE'}
+                            </span>
+                        </td>
+                        <td>${escapeHTML(streamer.quality)}</td>
+                        <td>${streamer.timer}</td>
+                        <td>
+                            <span class="badge ${streamer.is_active ? 'bg-success' : 'bg-secondary'}">
+                                ${streamer.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editStreamer(${streamer.id})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteStreamer(${streamer.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading streamers:', error);
+                showToast('Error loading streamers', 'error');
+            }
+        }
+
+        // Load recent recordings
+        async function loadRecentRecordings() {
+            try {
+                const response = await fetch('/api/recordings?per_page=6&include_converted=true');
+                const data = await response.json();
+                const tbody = document.getElementById('recent-recordings-list');
+                
+                if (!data.recordings || data.recordings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No recordings found</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                data.recordings.forEach(recording => {
+                    const row = document.createElement('tr');
+                    const status = getRecordingStatus(recording);
+                    const statusClass = getStatusBadgeClass(status);
+                    const streamerName = recording.streamer_name || recording.streamer_id || 'Unknown';
+                    
+                    row.innerHTML = `
+                        <td title="${escapeHTML(streamerName)}">${escapeHTML(streamerName)}</td>
+                        <td title="${formatDateEastern(recording.started_at)}">${formatDateEasternCompact(recording.started_at)}</td>
+                        <td title="${escapeHTML(recording.title || 'No title')}">${escapeHTML(recording.title || 'No title')}</td>
+                        <td>${recording.duration || '-'}</td>
+                        <td><span class="badge ${statusClass}">${status}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecording('${recording.filename}', ${recording.id})" title="Delete recording">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
-                    </tr>
-                `).join('');
+                    `;
+                    tbody.appendChild(row);
+                });
             } catch (error) {
-                console.error('Error loading streamers:', error);
+                console.error('Error loading recent recordings:', error);
+                showToast('Error loading recordings', 'error');
+            }
+        }
+
+        // Load active recordings
+        async function loadActiveRecordings() {
+            try {
+                const response = await fetch('/api/active-recordings?per_page=6');
+                const data = await response.json();
+                const tbody = document.getElementById('active-recordings-list');
+                
+                if (!data.recordings || data.recordings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No active recordings</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                data.recordings.forEach(recording => {
+                    const row = document.createElement('tr');
+                    const streamerName = recording.streamer_name || recording.streamer_id || 'Unknown';
+                    
+                    row.innerHTML = `
+                        <td title="${escapeHTML(streamerName)}">${escapeHTML(streamerName)}</td>
+                        <td title="${formatDateEastern(recording.started_at)}">${formatDateEasternCompact(recording.started_at)}</td>
+                        <td title="${escapeHTML(recording.title || 'No title')}">${escapeHTML(recording.title || 'No title')}</td>
+                        <td>${recording.duration || '-'}</td>
+                        <td><span class="badge bg-warning">RECORDING</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="stopRecording(${recording.id})" title="Stop recording">
+                                <i class="fas fa-stop"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading active recordings:', error);
             }
         }
 
@@ -776,431 +1331,966 @@
                 document.getElementById('total-recordings').textContent = status.total_recordings;
                 document.getElementById('recent-recordings').textContent = status.recent_recordings;
                 
-                // Load disk space
-                const diskResponse = await fetch('/api/disk-space');
-                const disk = await diskResponse.json();
-                const usedGB = (disk.used / 1024 / 1024 / 1024).toFixed(1);
-                const totalGB = (disk.total / 1024 / 1024 / 1024).toFixed(1);
-                const percent = ((disk.used / disk.total) * 100).toFixed(0);
-                
-                document.getElementById('disk-space').innerHTML = `
-                    <div>${usedGB}GB / ${totalGB}GB</div>
-                    <div class="text-${percent > 80 ? 'danger' : percent > 60 ? 'warning' : 'success'}">${percent}% used</div>
-                `;
+                try {
+                    const diskResponse = await fetch('/api/disk-space');
+                    const diskData = await diskResponse.json();
+                    const usedGB = (diskData.used / (1024 * 1024 * 1024)).toFixed(1);
+                    const totalGB = (diskData.total / (1024 * 1024 * 1024)).toFixed(1);
+                    const availableGB = (diskData.available / (1024 * 1024 * 1024)).toFixed(1);
+                    const percentUsed = ((diskData.used / diskData.total) * 100).toFixed(1);
+                    
+                    document.getElementById('disk-space').innerHTML = `
+                        <div>${usedGB}GB / ${totalGB}GB used</div>
+                        <div class="text-muted">${availableGB}GB available</div>
+                        <div class="text-${percentUsed > 80 ? 'danger' : percentUsed > 60 ? 'warning' : 'success'}">${percentUsed}% used</div>
+                    `;
+                } catch (diskError) {
+                    document.getElementById('disk-space').textContent = 'Unavailable';
+                }
             } catch (error) {
                 console.error('Error loading status:', error);
             }
         }
 
-        // Load active recordings
-        async function loadActiveRecordings() {
-            try {
-                const response = await fetch('/api/active-recordings?per_page=6');
-                const data = await response.json();
-                const tbody = document.getElementById('active-recordings-list');
-                
-                if (!data.recordings || data.recordings.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No active recordings</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = data.recordings.map(r => `
-                    <tr>
-                        <td>${escapeHTML(r.streamer_name || 'Unknown')}</td>
-                        <td title="${escapeHTML(r.title || 'No title')}" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
-                            ${escapeHTML(r.title || 'No title')}
-                        </td>
-                        <td>${r.duration || '-'}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger" onclick="stopRecording(${r.id})">
-                                <i class="fas fa-stop"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading active recordings:', error);
-            }
-        }
-
-        // Load recent recordings
-        async function loadRecentRecordings() {
-            try {
-                const response = await fetch('/api/recordings?per_page=6');
-                const data = await response.json();
-                const tbody = document.getElementById('recent-recordings-list');
-                
-                if (!data.recordings || data.recordings.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No recent recordings</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = data.recordings.map(r => {
-                    const status = r.status || 'completed';
-                    const statusClass = status === 'completed' ? 'bg-success' : 
-                                       status === 'recording' ? 'bg-warning' : 'bg-secondary';
-                    return `
-                        <tr>
-                            <td>${escapeHTML(r.streamer_name || 'Unknown')}</td>
-                            <td title="${escapeHTML(r.title || 'No title')}" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
-                                ${escapeHTML(r.title || 'No title')}
-                            </td>
-                            <td><span class="badge ${statusClass}">${status.toUpperCase()}</span></td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRecording('${r.filename}', ${r.id})">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            } catch (error) {
-                console.error('Error loading recent recordings:', error);
-            }
-        }
-
-        // Load recordings for conversion
-        async function loadRecordingsForConversion() {
-            try {
-                const response = await fetch('/api/recordings?per_page=20&conversion_only=true');
-                const data = await response.json();
-                const tbody = document.getElementById('conversion-recordings-list');
-                
-                if (!data.recordings || data.recordings.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No recordings available</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = data.recordings.map(r => `
-                    <tr>
-                        <td><input type="checkbox" class="conversion-checkbox" value="${r.id}" onchange="updateConvertButton()"></td>
-                        <td>${escapeHTML(r.streamer_name || 'Unknown')}</td>
-                        <td title="${escapeHTML(r.title || 'No title')}" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">
-                            ${escapeHTML(r.title || 'No title')}
-                        </td>
-                        <td>${r.duration || '-'}</td>
-                        <td>${formatFileSize(r.file_size)}</td>
-                    </tr>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading recordings for conversion:', error);
-            }
-        }
-
-        // Load conversion progress
-        async function loadConversionProgress() {
-            try {
-                const response = await fetch('/api/conversion-progress?per_page=10');
-                const data = await response.json();
-                const container = document.getElementById('conversion-progress-list');
-                
-                if (!data.conversions || data.conversions.length === 0) {
-                    container.innerHTML = '<p class="text-center text-muted">No conversion jobs</p>';
-                    return;
-                }
-                
-                container.innerHTML = data.conversions.map(c => {
-                    const status = c.status === 'pending' && c.started_at ? 'converting' : c.status;
-                    const statusClass = status === 'completed' ? 'success' : 
-                                       status === 'converting' ? 'warning' : 
-                                       status === 'failed' ? 'danger' : 'secondary';
-                    
-                    let progressHtml = '';
-                    if (status === 'converting' && c.progress) {
-                        const match = c.progress.match(/(\d+)%/);
-                        const percent = match ? parseInt(match[1]) : 0;
-                        progressHtml = `
-                            <div class="progress mt-2">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-${statusClass}" 
-                                     style="width: ${percent}%">${percent}%</div>
-                            </div>
-                        `;
-                    }
-                    
-                    return `
-                        <div class="card mb-2">
-                            <div class="card-body p-2">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <strong>${escapeHTML(c.filename)}</strong>
-                                        <div class="small text-muted">${c.progress || 'Waiting...'}</div>
-                                        ${progressHtml}
-                                    </div>
-                                    <div class="ms-2">
-                                        <span class="badge bg-${statusClass}">${status.toUpperCase()}</span>
-                                        ${status !== 'completed' && status !== 'failed' ? 
-                                            `<button class="btn btn-sm btn-outline-danger ms-1" onclick="cancelConversion(${c.job_id})">
-                                                <i class="fas fa-times"></i>
-                                            </button>` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                
-                // Poll for active conversions
-                const hasActive = data.conversions.some(c => {
-                    const status = c.status === 'pending' && c.started_at ? 'converting' : c.status;
-                    return status === 'converting' || status === 'pending';
-                });
-                
-                if (hasActive && !state.conversionPoll) {
-                    state.conversionPoll = setInterval(loadConversionProgress, 3000);
-                } else if (!hasActive && state.conversionPoll) {
-                    clearInterval(state.conversionPoll);
-                    state.conversionPoll = null;
-                }
-            } catch (error) {
-                console.error('Error loading conversion progress:', error);
-            }
-        }
-
-        // Update convert button
-        function updateConvertButton() {
-            const checked = document.querySelectorAll('.conversion-checkbox:checked').length;
-            document.getElementById('convert-btn').disabled = checked === 0;
-        }
-
-        // Toggle select all
-        function toggleSelectAll() {
-            const checked = document.getElementById('select-all').checked;
-            document.querySelectorAll('.conversion-checkbox').forEach(cb => cb.checked = checked);
-            updateConvertButton();
-        }
-
-        // Convert selected
-        async function convertSelected() {
-            const ids = Array.from(document.querySelectorAll('.conversion-checkbox:checked')).map(cb => cb.value);
-            if (ids.length === 0) return;
-            
-            try {
-                const response = await fetch('/api/convert-recordings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ recording_ids: ids, schedule_type: 'immediate' })
-                });
-                
-                if (response.ok) {
-                    showToast(`${ids.length} recording(s) queued for conversion`);
-                    document.querySelectorAll('.conversion-checkbox:checked').forEach(cb => cb.checked = false);
-                    document.getElementById('select-all').checked = false;
-                    updateConvertButton();
-                    loadConversionProgress();
-                } else {
-                    const error = await response.json();
-                    showToast(error.error || 'Conversion failed', 'danger');
-                }
-            } catch (error) {
-                showToast('Error starting conversion', 'danger');
-            }
-        }
-
-        // Stop recording
-        async function stopRecording(id) {
-            if (!confirm('Stop this recording?')) return;
-            
-            try {
-                const response = await fetch(`/api/recordings/${id}/stop`, { method: 'POST' });
-                if (response.ok) {
-                    showToast('Recording stopped');
-                    loadActiveRecordings();
-                    loadRecentRecordings();
-                } else {
-                    showToast('Failed to stop recording', 'danger');
-                }
-            } catch (error) {
-                showToast('Error stopping recording', 'danger');
-            }
-        }
-
-        // Delete recording
-        async function deleteRecording(filename, id) {
-            if (!confirm('Delete this recording?')) return;
-            
-            try {
-                const response = await fetch('/api/recordings/delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename })
-                });
-                
-                if (response.ok) {
-                    showToast('Recording deleted');
-                    loadRecentRecordings();
-                    loadStatus();
-                } else {
-                    showToast('Failed to delete recording', 'danger');
-                }
-            } catch (error) {
-                showToast('Error deleting recording', 'danger');
-            }
-        }
-
-        // Cancel conversion
-        async function cancelConversion(jobId) {
-            if (!confirm('Cancel this conversion?')) return;
-            
-            try {
-                const response = await fetch(`/api/conversion-jobs/${jobId}`, { method: 'DELETE' });
-                if (response.ok) {
-                    showToast('Conversion cancelled');
-                    loadConversionProgress();
-                } else {
-                    showToast('Failed to cancel conversion', 'danger');
-                }
-            } catch (error) {
-                showToast('Error cancelling conversion', 'danger');
-            }
-        }
-
-        // Twitch auth
-        async function loadTwitchAuth() {
-            try {
-                const response = await fetch('/api/twitch-auth');
-                const data = await response.json();
-                document.getElementById('tw-client-id').value = data.client_id || '';
-                document.getElementById('tw-extra-flags').value = data.extra_flags || '';
-            } catch (error) {
-                console.error('Error loading Twitch auth:', error);
-            }
-        }
-
-        async function saveTwitchAuth() {
-            try {
-                const response = await fetch('/api/twitch-auth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        client_id: document.getElementById('tw-client-id').value,
-                        client_secret: document.getElementById('tw-client-secret').value,
-                        oauth_token: document.getElementById('tw-oauth-token').value,
-                        extra_flags: document.getElementById('tw-extra-flags').value
-                    })
-                });
-                
-                if (response.ok) {
-                    showToast('Twitch auth saved');
-                    document.getElementById('tw-client-secret').value = '';
-                    document.getElementById('tw-oauth-token').value = '';
-                } else {
-                    showToast('Failed to save Twitch auth', 'danger');
-                }
-            } catch (error) {
-                showToast('Error saving Twitch auth', 'danger');
-            }
-        }
-
-        // Modal functions
+        // Streamer CRUD operations
         function showAddStreamerModal() {
+            document.getElementById('addStreamerForm').reset();
             new bootstrap.Modal(document.getElementById('addStreamerModal')).show();
         }
 
         async function addStreamer() {
-            const data = {
-                username: document.getElementById('add-display-name').value,
-                twitch_name: document.getElementById('add-twitch-name').value,
-                quality: document.getElementById('add-quality').value,
-                timer: parseInt(document.getElementById('add-timer').value),
-                is_active: document.getElementById('add-active').checked
+            const formData = {
+                username: document.getElementById('username').value,
+                twitch_name: document.getElementById('twitchName').value,
+                quality: document.getElementById('quality').value,
+                timer: parseInt(document.getElementById('timer').value),
+                is_active: document.getElementById('isActive').checked
             };
             
             try {
                 const response = await fetch('/api/streamers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(formData)
                 });
                 
                 if (response.ok) {
-                    showToast('Streamer added');
                     bootstrap.Modal.getInstance(document.getElementById('addStreamerModal')).hide();
+                    showToast('Streamer added successfully');
                     loadStreamers();
                     loadStatus();
                 } else {
-                    showToast('Failed to add streamer', 'danger');
+                    const error = await response.json();
+                    showToast('Error: ' + error.error, 'error');
                 }
             } catch (error) {
-                showToast('Error adding streamer', 'danger');
+                console.error('Error adding streamer:', error);
+                showToast('Error adding streamer', 'error');
+            }
+        }
+
+        async function editStreamer(id) {
+            try {
+                const response = await fetch('/api/streamers');
+                const streamers = await response.json();
+                const streamer = streamers.find(s => s.id === id);
+                
+                if (streamer) {
+                    document.getElementById('editStreamerId').value = streamer.id;
+                    document.getElementById('editUsername').value = streamer.username;
+                    document.getElementById('editTwitchName').value = streamer.twitch_name;
+                    document.getElementById('editQuality').value = streamer.quality;
+                    document.getElementById('editTimer').value = streamer.timer;
+                    document.getElementById('editIsActive').checked = streamer.is_active;
+                    
+                    new bootstrap.Modal(document.getElementById('editStreamerModal')).show();
+                }
+            } catch (error) {
+                console.error('Error loading streamer:', error);
+                showToast('Error loading streamer data', 'error');
+            }
+        }
+
+        async function updateStreamer() {
+            const id = document.getElementById('editStreamerId').value;
+            const formData = {
+                username: document.getElementById('editUsername').value,
+                twitch_name: document.getElementById('editTwitchName').value,
+                quality: document.getElementById('editQuality').value,
+                timer: parseInt(document.getElementById('editTimer').value),
+                is_active: document.getElementById('editIsActive').checked
+            };
+            
+            try {
+                const response = await fetch(`/api/streamers/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('editStreamerModal')).hide();
+                    showToast('Streamer updated successfully');
+                    loadStreamers();
+                    loadStatus();
+                } else {
+                    const error = await response.json();
+                    showToast('Error: ' + error.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error updating streamer:', error);
+                showToast('Error updating streamer', 'error');
             }
         }
 
         async function deleteStreamer(id) {
-            if (!confirm('Delete this streamer?')) return;
+            if (confirm('Are you sure you want to delete this streamer?')) {
+                try {
+                    const response = await fetch(`/api/streamers/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        showToast('Streamer deleted successfully');
+                        loadStreamers();
+                        loadStatus();
+                    } else {
+                        showToast('Error deleting streamer', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting streamer:', error);
+                    showToast('Error deleting streamer', 'error');
+                }
+            }
+        }
+
+        // Recording operations
+        async function stopRecording(recordingId) {
+            if (confirm('Are you sure you want to stop this recording?')) {
+                try {
+                    const response = await fetch(`/api/recordings/${recordingId}/stop`, { method: 'POST' });
+                    if (response.ok) {
+                        showToast('Recording stopped');
+                        loadActiveRecordings();
+                        loadRecentRecordings();
+                        loadStatus();
+                    } else {
+                        const error = await response.json();
+                        showToast('Error: ' + error.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error stopping recording:', error);
+                    showToast('Error stopping recording', 'error');
+                }
+            }
+        }
+
+        async function deleteRecording(filename, recordingId) {
+            if (confirm('Are you sure you want to delete this recording?')) {
+                try {
+                    const deleteResponse = await fetch('/api/recordings/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ filename: filename })
+                    });
+                    
+                    if (deleteResponse.ok) {
+                        if (recordingId) {
+                            await fetch(`/api/recordings/${recordingId}/remove-from-history`, { method: 'DELETE' });
+                        }
+                        showToast('Recording deleted successfully');
+                        loadRecentRecordings();
+                        loadStatus();
+                        if (document.getElementById('conversion-tab').style.display !== 'none') {
+                            loadRecordingsForConversion();
+                        }
+                    } else {
+                        const error = await deleteResponse.json();
+                        showToast('Error: ' + error.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting recording:', error);
+                    showToast('Error deleting recording', 'error');
+                }
+            }
+        }
+
+        // Twitch auth
+        async function loadTwitchAuth() {
+            try {
+                const res = await fetch('/api/twitch-auth');
+                const data = await res.json();
+                document.getElementById('tw-client-id').value = data.client_id || '';
+                document.getElementById('tw-client-secret').value = '';
+                document.getElementById('tw-oauth-token').value = '';
+                document.getElementById('tw-extra-flags').value = data.extra_flags || '';
+                
+                const hasMaskedId = data.client_id && data.client_id.includes('•');
+                const hasMaskedSecret = data.client_secret && data.client_secret.includes('•');
+                const hasMaskedToken = data.oauth_token && data.oauth_token.includes('•');
+                
+                document.getElementById('client-id-status').style.display = hasMaskedId ? 'block' : 'none';
+                document.getElementById('client-secret-status').style.display = hasMaskedSecret ? 'block' : 'none';
+                document.getElementById('oauth-token-status').style.display = hasMaskedToken ? 'block' : 'none';
+            } catch (e) {
+                console.error('loadTwitchAuth error', e);
+                showToast('Error loading Twitch settings', 'error');
+            }
+        }
+
+        async function saveTwitchAuth() {
+            const body = {
+                client_id: document.getElementById('tw-client-id').value || '',
+                client_secret: document.getElementById('tw-client-secret').value || '',
+                oauth_token: document.getElementById('tw-oauth-token').value || '',
+                extra_flags: document.getElementById('tw-extra-flags').value || ''
+            };
             
             try {
-                const response = await fetch(`/api/streamers/${id}`, { method: 'DELETE' });
-                if (response.ok) {
-                    showToast('Streamer deleted');
-                    loadStreamers();
-                    loadStatus();
-                } else {
-                    showToast('Failed to delete streamer', 'danger');
+                const res = await fetch('/api/twitch-auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ error: res.statusText }));
+                    showToast('Failed to save: ' + (err.error || res.status), 'error');
+                    return;
+                }
+                
+                showToast('Twitch authentication saved');
+                
+                if (body.client_id) document.getElementById('client-id-status').style.display = 'block';
+                if (body.client_secret) document.getElementById('client-secret-status').style.display = 'block';
+                if (body.oauth_token) document.getElementById('oauth-token-status').style.display = 'block';
+                
+                document.getElementById('tw-client-secret').value = '';
+                document.getElementById('tw-oauth-token').value = '';
+                loadTwitchAuth();
+            } catch (e) {
+                console.error('saveTwitchAuth error', e);
+                showToast('Error saving Twitch settings', 'error');
+            }
+        }
+
+        // Conversion functions
+        async function loadRecordingsForConversion() {
+            try {
+                const response = await fetch('/api/recordings?per_page=6&conversion_only=true');
+                const data = await response.json();
+                const tbody = document.getElementById('conversion-recordings-table');
+                
+                if (!data.recordings || data.recordings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No recordings found</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                data.recordings.forEach(recording => {
+                    const row = document.createElement('tr');
+                    const status = getRecordingStatus(recording);
+                    const statusClass = getStatusBadgeClass(status);
+                    
+                    row.innerHTML = `
+                        <td><input type="checkbox" class="recording-checkbox" value="${recording.id}" onchange="updateConvertButton()"></td>
+                        <td title="${escapeHTML(recording.streamer_name || 'Unknown')}">${escapeHTML(recording.streamer_name || 'Unknown')}</td>
+                        <td title="${escapeHTML(recording.title || 'No title')}">${escapeHTML(recording.title || 'No title')}</td>
+                        <td><span class="badge ${statusClass}">${status}</span></td>
+                        <td title="${formatDateEastern(recording.started_at)}">${formatDateEastern(recording.started_at)}</td>
+                        <td>${recording.duration || '-'}</td>
+                        <td>${recording.file_size ? formatFileSize(recording.file_size) : '-'}</td>
+                        <td><span class="badge bg-secondary" id="conversion-status-${recording.id}">Not Converted</span></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading recordings for conversion:', error);
+                showToast('Error loading recordings', 'error');
+            }
+        }
+
+        async function loadConversionSettings() {
+            try {
+                const response = await fetch('/api/conversion-settings');
+                const settings = await response.json();
+                
+                if (document.getElementById('conversion-volume-path-display')) {
+                    const realPath = settings.volume_path || 'Not set';
+                    document.getElementById('conversion-volume-path-display').textContent = `${realPath} (/app/download)`;
+                }
+                
+                if (document.getElementById('output-volume-path-display')) {
+                    const realPath = settings.output_volume_path || 'Not set';
+                    document.getElementById('output-volume-path-display').textContent = `${realPath} (/app/converted)`;
+                }
+                
+                const sel = document.getElementById('ffmpegPreset');
+                if (sel && settings.available_presets) {
+                    sel.innerHTML = '';
+                    settings.available_presets.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.key;
+                        opt.textContent = p.label;
+                        opt.dataset.desc = p.desc;
+                        sel.appendChild(opt);
+                    });
+                    sel.value = settings.ffmpeg_preset || 'default_h264_aac';
+                    
+                    sel.addEventListener('change', () => {
+                        document.getElementById('ffmpegPresetHelp').textContent = sel.selectedOptions[0]?.dataset.desc || '';
+                    });
+                    
+                    document.getElementById('ffmpegPresetHelp').textContent = sel.selectedOptions[0]?.dataset.desc || '';
+                }
+                
+                if (document.getElementById('custom-filename-template')) {
+                    document.getElementById('custom-filename-template').value = settings.custom_filename_template || '';
+                }
+                
+                if (document.getElementById('delete-original-after-conversion')) {
+                    document.getElementById('delete-original-after-conversion').checked = settings.delete_original_after_conversion || false;
                 }
             } catch (error) {
-                showToast('Error deleting streamer', 'danger');
+                console.error('Error loading conversion settings:', error);
+                showToast('Error loading conversion settings', 'error');
             }
         }
 
-        // Refresh
+        async function saveConversionSettings() {
+            const settings = {
+                custom_filename_template: document.getElementById('custom-filename-template').value,
+                delete_original_after_conversion: document.getElementById('delete-original-after-conversion').checked,
+                ffmpeg_preset: document.getElementById('ffmpegPreset').value
+            };
+            
+            try {
+                const response = await fetch('/api/conversion-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (response.ok) {
+                    showToast('Conversion settings saved');
+                } else {
+                    showToast('Error saving settings', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving conversion settings:', error);
+                showToast('Error saving settings', 'error');
+            }
+        }
+
+        async function refreshConversionProgress() {
+            try {
+                const response = await fetch('/api/conversion-progress?per_page=6');
+                const data = await response.json();
+                const tbody = document.getElementById('conversion-progress-list');
+                
+                tbody.innerHTML = '';
+                window.currentConversionsData = data.conversions || [];
+                
+                if (data.conversions && data.conversions.length > 0) {
+                    data.conversions.forEach(conversion => {
+                        const row = document.createElement('tr');
+                        const actualStatus = (conversion.status === 'pending' && conversion.started_at) ? 'converting' : conversion.status;
+                        const statusClass = actualStatus === 'completed' ? 'bg-success' : 
+                                          actualStatus === 'failed' ? 'bg-danger' : 
+                                          actualStatus === 'converting' ? 'bg-warning' : 'bg-secondary';
+                        
+                        let statusText = actualStatus.toUpperCase();
+                        if (actualStatus === 'pending' && (conversion.schedule_type === 'immediate' || conversion.schedule_type === 'manual')) {
+                            statusText = 'QUEUED';
+                        }
+                        
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="conversion-checkbox" value="${conversion.job_id}" onchange="updateCombineButton();"></td>
+                            <td title="${conversion.filename}">${conversion.is_concatenation ? '<i class="fas fa-object-group me-1 text-primary"></i>' : ''}${conversion.filename}</td>
+                            <td><span class="badge ${statusClass}">${statusText}</span></td>
+                            <td title="${conversion.progress || 'N/A'}">${conversion.progress || (actualStatus === 'pending' ? 'Queued...' : '—')}</td>
+                            <td>${conversion.file_size_display}</td>
+                            <td>${conversion.schedule_type || 'immediate'}</td>
+                            <td title="${conversion.output_filename || '-'}">${conversion.output_filename === 'User Deleted File' ? '<span class="text-danger"><i class="fas fa-trash me-1"></i>Deleted</span>' : (conversion.output_filename || '-')}</td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    ${actualStatus !== 'completed' && actualStatus !== 'failed' ? 
+                                        `<button class="btn btn-sm btn-outline-danger" onclick="cancelConversionJob(${conversion.job_id})">
+                                            <i class="fas fa-times"></i>
+                                        </button>` : ''}
+                                    ${actualStatus === 'completed' && conversion.output_filename !== 'User Deleted File' ? 
+                                        `<button class="btn btn-sm btn-outline-danger" onclick="deleteConvertedFile(${conversion.job_id})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>` : ''}
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="removeConversionJobFromHistory(${conversion.job_id})">
+                                        <i class="fas fa-history"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    const hasActive = data.conversions.some(j => {
+                        const actualStatus = (j.status === 'pending' && j.started_at) ? 'converting' : j.status;
+                        return actualStatus === 'pending' || actualStatus === 'converting';
+                    });
+                    
+                    if (hasActive && !conversionPoll) {
+                        conversionPoll = setInterval(() => refreshConversionProgress(), 5000);
+                    } else if (!hasActive && conversionPoll) {
+                        clearInterval(conversionPoll);
+                        conversionPoll = null;
+                    }
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No conversion jobs</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error refreshing conversion progress:', error);
+            }
+        }
+
+        async function convertSelectedRecordings() {
+            const checkboxes = document.querySelectorAll('.recording-checkbox:checked');
+            const recordingIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (recordingIds.length === 0) {
+                showToast('Please select recordings to convert', 'warning');
+                return;
+            }
+            
+            const payload = {
+                recording_ids: recordingIds,
+                schedule_type: 'immediate'
+            };
+            
+            try {
+                const res = await fetch('/api/convert-recordings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(json.error || res.statusText);
+                
+                showToast('Conversion started');
+                refreshConversionProgress();
+                loadScheduledTasks();
+                
+                recordingIds.forEach(id => {
+                    const statusBadge = document.getElementById(`conversion-status-${id}`);
+                    if (statusBadge) {
+                        statusBadge.textContent = 'Queued';
+                        statusBadge.className = 'badge bg-warning';
+                    }
+                });
+                
+                checkboxes.forEach(cb => cb.checked = false);
+                document.getElementById('select-all-recordings').checked = false;
+                updateConvertButton();
+            } catch (e) {
+                console.error(e);
+                showToast('Error: ' + e.message, 'error');
+            }
+        }
+
+        async function cancelConversionJob(jobId) {
+            if (confirm('Cancel this conversion job?')) {
+                try {
+                    const response = await fetch(`/api/conversion-jobs/${jobId}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        showToast('Conversion job cancelled');
+                        refreshConversionProgress();
+                        loadScheduledTasks();
+                    } else {
+                        const error = await response.json();
+                        showToast('Error: ' + error.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error canceling conversion job:', error);
+                    showToast('Error cancelling job', 'error');
+                }
+            }
+        }
+
+        async function removeConversionJobFromHistory(jobId) {
+            if (confirm('Remove this job from history? Files will not be deleted.')) {
+                try {
+                    const response = await fetch(`/api/conversion-jobs/${jobId}/remove-from-history`, { method: 'DELETE' });
+                    if (response.ok) {
+                        showToast('Job removed from history');
+                        refreshConversionProgress();
+                        loadScheduledTasks();
+                    } else {
+                        const error = await response.json();
+                        showToast('Error: ' + error.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error removing job:', error);
+                    showToast('Error removing job', 'error');
+                }
+            }
+        }
+
+        async function deleteConvertedFile(jobId) {
+            if (deletedFiles.has(jobId)) {
+                showToast('File already deleted', 'warning');
+                return;
+            }
+            
+            if (confirm('Delete the converted file? This cannot be undone.')) {
+                try {
+                    const response = await fetch(`/api/conversion-jobs/${jobId}/delete-file`, { method: 'DELETE' });
+                    if (response.ok) {
+                        deletedFiles.add(jobId);
+                        showToast('Converted file deleted');
+                        refreshConversionProgress();
+                        loadScheduledTasks();
+                    } else {
+                        const error = await response.json();
+                        showToast('Error: ' + error.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting file:', error);
+                    showToast('Error deleting file', 'error');
+                }
+            }
+        }
+
+        async function combineSelectedVideos() {
+            const checkboxes = document.querySelectorAll('.conversion-checkbox:checked');
+            const jobIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            const validJobIds = jobIds.filter(jobId => {
+                const job = window.currentConversionsData?.find(c => c.job_id == jobId);
+                return job && job.status === 'completed' && job.output_filename;
+            });
+            
+            if (validJobIds.length < 2) {
+                showToast('Select at least 2 completed videos', 'warning');
+                return;
+            }
+            
+            const defaultName = prompt('Enter name for combined video (without .mp4):', 'combined_stream');
+            if (!defaultName) return;
+            
+            try {
+                const response = await fetch('/api/concatenate-videos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: validJobIds, output_filename: defaultName })
+                });
+                
+                if (response.ok) {
+                    showToast('Video combination started');
+                    checkboxes.forEach(cb => cb.checked = false);
+                    document.getElementById('select-all-conversions').checked = false;
+                    updateCombineButton();
+                    refreshConversionProgress();
+                } else {
+                    const error = await response.json();
+                    showToast('Error: ' + error.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error combining videos:', error);
+                showToast('Error combining videos', 'error');
+            }
+        }
+
+        async function deleteSelectedConversionJobs() {
+            const checkboxes = document.querySelectorAll('.conversion-checkbox:checked');
+            const jobIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (jobIds.length === 0) {
+                showToast('Please select jobs to delete', 'warning');
+                return;
+            }
+            
+            if (confirm(`Delete ${jobIds.length} job record(s) from database? Files will not be deleted.`)) {
+                try {
+                    const response = await fetch('/api/conversion-jobs/bulk-delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ job_ids: jobIds })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        showToast(result.message);
+                        checkboxes.forEach(cb => cb.checked = false);
+                        document.getElementById('select-all-conversions').checked = false;
+                        updateCombineButton();
+                        refreshConversionProgress();
+                    } else {
+                        const error = await response.json();
+                        showToast('Error: ' + error.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting jobs:', error);
+                    showToast('Error deleting jobs', 'error');
+                }
+            }
+        }
+
+        async function loadScheduledTasks() {
+            try {
+                const response = await fetch('/api/schedule-template');
+                const data = await response.json();
+                const tasksList = document.getElementById('scheduled-tasks-list');
+                const templates = data.templates || [];
+                
+                if (templates.length > 0) {
+                    tasksList.innerHTML = '';
+                    templates.forEach(template => {
+                        const row = document.createElement('tr');
+                        let scheduleTypeDisplay = template.schedule_type;
+                        if (template.schedule_type === 'daily') scheduleTypeDisplay = 'Daily';
+                        else if (template.schedule_type === 'weekly') scheduleTypeDisplay = 'Weekly';
+                        else if (template.schedule_type === 'custom' || template.schedule_type === 'scheduled') scheduleTypeDisplay = 'One-time';
+                        
+                        let scheduledTimeDisplay = 'Not set';
+                        if (template.scheduled_at) {
+                            const schedDate = new Date(template.scheduled_at);
+                            if (template.schedule_type === 'daily' || template.schedule_type === 'weekly') {
+                                scheduledTimeDisplay = schedDate.toLocaleTimeString('en-US', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    timeZone: 'America/New_York'
+                                });
+                            } else {
+                                scheduledTimeDisplay = formatDateEasternCompact(template.scheduled_at);
+                            }
+                        }
+                        
+                        const taskName = template.custom_filename || 'Unnamed Task';
+                        
+                        row.innerHTML = `
+                            <td title="${taskName}">${taskName}</td>
+                            <td>${scheduleTypeDisplay}</td>
+                            <td title="${template.scheduled_at ? formatDateEastern(template.scheduled_at) : 'No schedule'}">${scheduledTimeDisplay}</td>
+                            <td>Next run time</td>
+                            <td><span class="badge bg-success">Active</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeScheduleTemplate(${template.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        `;
+                        tasksList.appendChild(row);
+                    });
+                } else {
+                    tasksList.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No scheduled tasks</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading scheduled tasks:', error);
+            }
+        }
+
+        async function removeScheduleTemplate(templateId) {
+            if (confirm('Remove this schedule template?')) {
+                try {
+                    const response = await fetch(`/api/conversion-jobs/${templateId}/remove-from-history`, { method: 'DELETE' });
+                    if (response.ok) {
+                        showToast('Schedule removed');
+                        loadScheduledTasks();
+                    } else {
+                        const error = await response.json();
+                        showToast('Error: ' + error.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error removing schedule:', error);
+                    showToast('Error removing schedule', 'error');
+                }
+            }
+        }
+
+        async function saveScheduledConversion() {
+            const scheduleType = document.getElementById('schedule-type').value;
+            const scheduledTimeInput = document.getElementById('scheduled-time');
+            const taskName = document.getElementById('conversion-task-name').value.trim();
+            
+            if (!taskName) {
+                showToast('Please enter a task name', 'warning');
+                return;
+            }
+            
+            if (scheduleType !== 'immediate' && !scheduledTimeInput.value) {
+                showToast('Please select a time', 'warning');
+                return;
+            }
+            
+            let scheduledTime = null;
+            if (scheduleType !== 'immediate') {
+                if (scheduleType === 'daily' || scheduleType === 'weekly') {
+                    const now = new Date();
+                    const [hours, minutes] = scheduledTimeInput.value.split(':');
+                    now.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                    scheduledTime = now.toISOString();
+                } else {
+                    scheduledTime = new Date(scheduledTimeInput.value).toISOString();
+                }
+            }
+            
+            const scheduledData = {
+                schedule_type: scheduleType,
+                scheduled_time: scheduledTime,
+                custom_filename: taskName
+            };
+            
+            try {
+                const response = await fetch('/api/schedule-template', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(scheduledData)
+                });
+                
+                if (response.ok) {
+                    showToast('Scheduled task created');
+                    document.getElementById('schedule-type').value = 'immediate';
+                    document.getElementById('scheduled-time').value = '';
+                    document.getElementById('conversion-task-name').value = '';
+                    toggleScheduleOptions();
+                    loadScheduledTasks();
+                } else {
+                    const errorData = await response.json();
+                    showToast('Error: ' + (errorData.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error creating scheduled task:', error);
+                showToast('Error creating task', 'error');
+            }
+        }
+
+        function toggleScheduleOptions() {
+            const scheduleType = document.getElementById('schedule-type').value;
+            const scheduledTimeGroup = document.getElementById('scheduled-time-group');
+            const scheduledTimeInput = document.getElementById('scheduled-time');
+            const scheduledTimeLabel = scheduledTimeGroup.querySelector('label');
+            
+            if (scheduleType === 'immediate') {
+                scheduledTimeGroup.style.display = 'none';
+                scheduledTimeInput.value = '';
+            } else if (scheduleType === 'daily' || scheduleType === 'weekly') {
+                scheduledTimeGroup.style.display = 'block';
+                scheduledTimeInput.type = 'time';
+                scheduledTimeLabel.textContent = 'Time of Day';
+                scheduledTimeGroup.querySelector('.form-text').textContent = 
+                    scheduleType === 'daily' ? 'Time to run each day' : 'Time to run each week';
+            } else {
+                scheduledTimeGroup.style.display = 'block';
+                scheduledTimeInput.type = 'datetime-local';
+                scheduledTimeLabel.textContent = 'Scheduled Time';
+                scheduledTimeGroup.querySelector('.form-text').textContent = 'When to run this conversion';
+                
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                scheduledTimeInput.value = now.toISOString().slice(0, 16);
+            }
+        }
+
+        // Selection management
+        function toggleAllRecordings() {
+            const selectAll = document.getElementById('select-all-recordings');
+            const checkboxes = document.querySelectorAll('.recording-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateConvertButton();
+        }
+
+        function toggleAllConversions() {
+            const selectAll = document.getElementById('select-all-conversions');
+            const checkboxes = document.querySelectorAll('.conversion-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateCombineButton();
+        }
+
+        function toggleAllRecordingsModal() {
+            const selectAll = document.getElementById('select-all-recordings-modal');
+            const checkboxes = document.querySelectorAll('.recording-checkbox-modal');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        }
+
+        function updateConvertButton() {
+            const checkboxes = document.querySelectorAll('.recording-checkbox:checked');
+            document.getElementById('convert-btn').disabled = checkboxes.length === 0;
+        }
+
+        function updateCombineButton() {
+            const checkboxes = document.querySelectorAll('.conversion-checkbox:checked');
+            const combineBtn = document.getElementById('combine-videos-btn');
+            const deleteBtn = document.getElementById('delete-selected-btn');
+            
+            const selectedJobs = Array.from(checkboxes).map(cb => {
+                const jobId = cb.value;
+                return window.currentConversionsData?.find(c => c.job_id == jobId);
+            }).filter(job => job && job.status === 'completed' && job.output_filename && job.output_filename !== 'User Deleted File');
+            
+            if (selectedJobs.length >= 2) {
+                combineBtn.disabled = false;
+                combineBtn.innerHTML = `<i class="fas fa-object-group me-1"></i>Combine (${selectedJobs.length})`;
+            } else {
+                combineBtn.disabled = true;
+                combineBtn.innerHTML = '<i class="fas fa-object-group me-1"></i>Combine Selected';
+            }
+            
+            if (checkboxes.length > 0) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = `<i class="fas fa-trash me-1"></i>Delete (${checkboxes.length})`;
+            } else {
+                deleteBtn.disabled = true;
+                deleteBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete';
+            }
+        }
+
+        // Refresh functions
         function refreshStatus() {
             loadStreamers();
+            loadRecentRecordings();
             loadStatus();
+        }
+
+        function refreshActiveRecordings() {
             loadActiveRecordings();
+        }
+
+        function refreshRecentRecordings() {
             loadRecentRecordings();
         }
 
-        // Auto-refresh with visibility API
-        function startAutoRefresh() {
-            if (state.refreshInterval) clearInterval(state.refreshInterval);
-            state.refreshInterval = setInterval(() => {
-                if (!document.hidden) {
-                    loadStreamers();
-                    loadStatus();
-                    loadActiveRecordings();
-                    loadRecentRecordings();
-                }
-            }, 30000);
+        function refreshRecordingsForConversion() {
+            loadRecordingsForConversion();
         }
 
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                if (state.refreshInterval) clearInterval(state.refreshInterval);
-                if (state.conversionPoll) clearInterval(state.conversionPoll);
-            } else {
-                refreshStatus();
-                startAutoRefresh();
-            }
-        });
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            loadStreamers();
-            loadStatus();
-            loadActiveRecordings();
-            loadRecentRecordings();
-            startAutoRefresh();
-        });
-
-        // Placeholder functions for modals
+        // Modal functions
         function showRecordingsModal() {
-            showToast('Full recordings view coming soon', 'info');
+            loadRecordingsModal(1);
+            new bootstrap.Modal(document.getElementById('recordingsModal')).show();
         }
 
         function showActiveRecordingsModal() {
-            showToast('Full active recordings view coming soon', 'info');
+            showToast('Active recordings modal not fully implemented', 'info');
         }
 
-        function editStreamer(id) {
-            showToast('Edit streamer coming soon', 'info');
+        function showRecordingsForConversionModal() {
+            showToast('Recordings for conversion modal not fully implemented', 'info');
         }
 
-        function saveConversionSettings() {
-            showToast('Conversion settings saved', 'info');
+        function showConversionProgressModal() {
+            showToast('Conversion progress modal not fully implemented', 'info');
         }
 
-        function saveSchedule() {
-            showToast('Schedule saved', 'info');
+        async function loadRecordingsModal(page) {
+            try {
+                const response = await fetch(`/api/recordings?page=${page}&per_page=10&include_converted=true`);
+                const data = await response.json();
+                const tbody = document.getElementById('recordings-table');
+                
+                tbody.innerHTML = '';
+                window.currentRecordingsData = data.recordings;
+                
+                data.recordings.forEach((recording, index) => {
+                    const row = document.createElement('tr');
+                    const status = getRecordingStatus(recording);
+                    const statusClass = getStatusBadgeClass(status);
+                    
+                    row.innerHTML = `
+                        <td><input type="checkbox" class="recording-checkbox-modal" value="${index}"></td>
+                        <td>${escapeHTML(recording.streamer_name || 'Unknown')}</td>
+                        <td>${escapeHTML(recording.title || 'No title')}</td>
+                        <td><span class="badge ${statusClass}">${status}</span></td>
+                        <td>${formatDateEastern(recording.started_at)}</td>
+                        <td>${recording.duration || '-'}</td>
+                        <td>${recording.file_size ? formatFileSize(recording.file_size) : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecording('${recording.filename}', ${recording.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                updatePagination(data.current_page, data.pages, data.total);
+                currentPage = page;
+            } catch (error) {
+                console.error('Error loading recordings modal:', error);
+            }
+        }
+
+        function updatePagination(currentPage, totalPages, total) {
+            const pagination = document.getElementById('recordings-pagination');
+            pagination.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" onclick="loadRecordingsModal(${currentPage - 1})">Previous</a>`;
+            pagination.appendChild(prevLi);
+            
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" onclick="loadRecordingsModal(${i})">${i}</a>`;
+                pagination.appendChild(li);
+            }
+            
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" onclick="loadRecordingsModal(${currentPage + 1})">Next</a>`;
+            pagination.appendChild(nextLi);
+        }
+
+        async function bulkDeleteRecordings() {
+            const checkboxes = document.querySelectorAll('.recording-checkbox-modal:checked');
+            const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            
+            if (selectedIndices.length === 0) {
+                showToast('Please select recordings to delete', 'warning');
+                return;
+            }
+            
+            if (!confirm(`Delete ${selectedIndices.length} recording(s)? This cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                let successCount = 0;
+                let errorCount = 0;
+                
+                for (const index of selectedIndices) {
+                    try {
+                        const recording = window.currentRecordingsData[index];
+                        if (recording) {
+                            const deleteResponse = await fetch('/api/recordings/delete', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ filename: recording.filename })
+                            });
+                            
+                            if (deleteResponse.ok) {
+                                successCount++;
+                            } else {
+                                errorCount++;
+                            }
+                        } else {
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        console.error('Error deleting recording:', error);
+                        errorCount++;
+                    }
+                }
+                
+                if (successCount > 0) {
+                    showToast(`Deleted ${successCount} recording(s)${errorCount > 0 ? `, ${errorCount} failed` : ''}`);
+                    loadRecordingsModal(currentPage);
+                    loadRecentRecordings();
+                    loadStatus();
+                } else {
+                    showToast('Failed to delete any recordings', 'error');
+                }
+            } catch (error) {
+                console.error('Error in bulk delete:', error);
+                showToast('Error performing bulk delete', 'error');
+            }
         }
     </script>
 </body>
