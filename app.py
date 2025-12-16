@@ -2866,8 +2866,8 @@ def concatenate_videos():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health')
-def health_check():
-    """Health check endpoint for Docker"""
+def docker_health():
+    """Simple health check endpoint for Docker healthcheck"""
     return jsonify({'status': 'healthy'})
 
 
@@ -3214,6 +3214,226 @@ def get_schedule_templates():
         logger.error(f"Error getting schedule templates: {e}")
         return jsonify({'error': f'Failed to get schedule templates: {str(e)}'}), 500
 
+
+# === HEALTH CHECK ENDPOINTS ===
+
+@app.route('/api/health')
+def health_check():
+    """Comprehensive health check endpoint"""
+    import gc
+    
+    health = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "issues": [],
+        "warnings": []
+    }
+    
+    try:
+        # 1. Check database connectivity
+        try:
+            db.session.execute(text("SELECT 1"))
+            health["database"] = "connected"
+        except Exception as e:
+            health["database"] = f"error: {str(e)}"
+            health["issues"].append("Database connection failed")
+            health["status"] = "unhealthy"
+        
+        # 2. Check SQLite WAL size
+        try:
+            data_dir = '/app/data'
+            wal_path = os.path.join(data_dir, 'streamlink.db-wal')
+            if os.path.exists(wal_path):
+                wal_size = os.path.getsize(wal_path)
+                health["sqlite_wal_size_mb"] = round(wal_size / (1024 * 1024), 2)
+                if wal_size > 100 * 1024 * 1024:
+                    health["warnings"].append(f"SQLite WAL file is large ({wal_size / (1024*1024):.0f}MB)")
+                    try:
+                        db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+                        health["warnings"].append("WAL checkpoint triggered")
+                    except Exception:
+                        pass
+        except Exception as e:
+            health["sqlite_wal_size_mb"] = f"error: {str(e)}"
+        
+        # 3. Check connection pool status
+        try:
+            pool = db.engine.pool
+            pool_status = {
+                "size": pool.size(),
+                "checked_in": pool.checkedin(),
+                "checked_out": pool.checkedout(),
+                "overflow": pool.overflow(),
+            }
+            health["connection_pool"] = pool_status
+        except Exception as e:
+            health["connection_pool"] = f"error: {str(e)}"
+        
+        # 4. Check monitoring threads
+        try:
+            stream_monitor = get_stream_monitor()
+            monitor_status = stream_monitor.get_monitoring_status()
+            alive_count = sum(1 for alive in monitor_status.values() if alive)
+            dead_count = len(monitor_status) - alive_count
+            
+            health["monitoring"] = {
+                "total_threads": len(monitor_status),
+                "alive_threads": alive_count,
+                "dead_threads": dead_count,
+            }
+            
+            if dead_count > 0:
+                health["issues"].append(f"{dead_count} monitor threads are dead")
+                health["status"] = "degraded"
+            
+            if hasattr(stream_monitor, 'get_health_status'):
+                health["monitoring_details"] = stream_monitor.get_health_status()
+                
+        except Exception as e:
+            health["monitoring"] = f"error: {str(e)}"
+            health["issues"].append("Could not check monitoring status")
+        
+        # 5. Check recording manager
+        try:
+            recording_manager = get_recording_manager()
+            active = recording_manager.get_active_recordings()
+            health["active_recordings"] = len(active)
+        except Exception as e:
+            health["active_recordings"] = f"error: {str(e)}"
+        
+        # 6. Check thread count
+        try:
+            thread_count = threading.active_count()
+            health["thread_count"] = thread_count
+            if thread_count > 50:
+                health["warnings"].append(f"High thread count: {thread_count}")
+        except Exception as e:
+            health["thread_count"] = f"error: {str(e)}"
+        
+        # 7. Check disk space
+        try:
+            download_path = get_download_path()
+            total, used, free = shutil.disk_usage(download_path)
+            health["disk"] = {
+                "total_gb": round(total / (1024**3), 2),
+                "free_gb": round(free / (1024**3), 2),
+                "percent_used": round(used / total * 100, 1),
+            }
+            if free < 5 * 1024**3:
+                health["warnings"].append(f"Low disk space: {free / (1024**3):.1f}GB free")
+        except Exception as e:
+            health["disk"] = f"error: {str(e)}"
+        
+        # 8. Check active streamers vs monitored
+        try:
+            active_streamers = Streamer.query.filter_by(is_active=True).count()
+            monitored_count = len(stream_monitor.get_monitoring_status())
+            health["streamers"] = {
+                "active_in_db": active_streamers,
+                "monitored": monitored_count,
+            }
+            if active_streamers != monitored_count:
+                health["warnings"].append(f"Streamer count mismatch: {active_streamers} active vs {monitored_count} monitored")
+        except Exception as e:
+            health["streamers"] = f"error: {str(e)}"
+        
+        # 9. Force garbage collection
+        try:
+            gc.collect()
+        except Exception:
+            pass
+        
+        # Set overall status
+        if health["issues"]:
+            if health["status"] != "unhealthy":
+                health["status"] = "degraded"
+        
+        return jsonify(health)
+        
+    except Exception as e:
+        logger.exception("Health check failed")
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+
+@app.route('/api/health/fix', methods=['POST'])
+def health_fix():
+    """Attempt to fix common issues"""
+    fixes_applied = []
+    
+    try:
+        # 1. Restart dead monitor threads
+        try:
+            stream_monitor = get_stream_monitor()
+            monitor_status = stream_monitor.get_monitoring_status()
+            dead_streamers = [sid for sid, alive in monitor_status.items() if not alive]
+            
+            for streamer_id in dead_streamers:
+                stream_monitor.stop_monitoring(streamer_id)
+                stream_monitor.start_monitoring(streamer_id)
+                fixes_applied.append(f"Restarted monitor for streamer {streamer_id}")
+        except Exception as e:
+            fixes_applied.append(f"Failed to restart monitors: {e}")
+        
+        # 2. Checkpoint SQLite WAL
+        try:
+            db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+            db.session.commit()
+            fixes_applied.append("SQLite WAL checkpointed")
+        except Exception as e:
+            fixes_applied.append(f"WAL checkpoint failed: {e}")
+        
+        # 3. Clean up stale database connections
+        try:
+            db.session.remove()
+            fixes_applied.append("Database session cleaned")
+        except Exception as e:
+            fixes_applied.append(f"Session cleanup failed: {e}")
+        
+        # 4. Force garbage collection
+        try:
+            import gc
+            collected = gc.collect()
+            fixes_applied.append(f"Garbage collection freed {collected} objects")
+        except Exception as e:
+            fixes_applied.append(f"GC failed: {e}")
+        
+        # 5. Ensure all active streamers are monitored
+        try:
+            active_streamers = Streamer.query.filter_by(is_active=True).all()
+            started = 0
+            for streamer in active_streamers:
+                if not stream_monitor.get_monitoring_status().get(streamer.id, False):
+                    stream_monitor.start_monitoring(streamer.id)
+                    started += 1
+            if started > 0:
+                fixes_applied.append(f"Started monitoring for {started} unmonitored streamers")
+        except Exception as e:
+            fixes_applied.append(f"Failed to start missing monitors: {e}")
+        
+        return jsonify({"status": "fixes_applied", "fixes": fixes_applied})
+        
+    except Exception as e:
+        logger.exception("Health fix failed")
+        return jsonify({"status": "fix_failed", "error": str(e), "partial_fixes": fixes_applied}), 500
+
+
+@app.route('/api/health/threads')
+def health_threads():
+    """Detailed thread information for debugging"""
+    threads = []
+    for thread in threading.enumerate():
+        thread_info = {
+            "name": thread.name,
+            "daemon": thread.daemon,
+            "alive": thread.is_alive(),
+            "ident": thread.ident,
+        }
+        threads.append(thread_info)
+    
+    return jsonify({
+        "total_threads": len(threads),
+        "threads": sorted(threads, key=lambda x: x["name"])
+    })
 
 
 def convert_ts_to_mp4(input_file, output_file, job):
