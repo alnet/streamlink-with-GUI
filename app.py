@@ -246,6 +246,115 @@ def setup_sqlite_event_listeners():
     """Setup SQLite event listeners within app context"""
     event.listens_for(db.engine, "connect")(_set_sqlite_pragma)
 
+# WAL checkpoint management to prevent data loss
+WAL_CHECKPOINT_INTERVAL = 4 * 60 * 60  # 4 hours in seconds
+_wal_checkpoint_thread = None
+_wal_checkpoint_stop_event = threading.Event()
+
+def perform_wal_checkpoint(mode="PASSIVE"):
+    """
+    Perform a WAL checkpoint to merge WAL file into main database.
+    
+    Modes:
+    - PASSIVE: Checkpoint as much as possible without blocking (default, safe)
+    - FULL: Block writers and checkpoint everything
+    - TRUNCATE: Like FULL but also truncates WAL file
+    - RESTART: Like TRUNCATE but also restarts WAL file
+    """
+    try:
+        with db.engine.connect() as conn:
+            result = conn.execute(text(f"PRAGMA wal_checkpoint({mode});"))
+            row = result.fetchone()
+            if row:
+                busy, log_pages, checkpointed = row
+                logger.info(f"WAL checkpoint ({mode}): busy={busy}, log_pages={log_pages}, checkpointed={checkpointed}")
+                return {"success": True, "busy": busy, "log_pages": log_pages, "checkpointed": checkpointed}
+            return {"success": True}
+    except Exception as e:
+        logger.error(f"WAL checkpoint error: {e}")
+        return {"success": False, "error": str(e)}
+
+def get_wal_status():
+    """Get current WAL file status"""
+    try:
+        db_path = app.config.get("SQLALCHEMY_DATABASE_URI", "").replace("sqlite:///", "")
+        wal_path = f"{db_path}-wal"
+        shm_path = f"{db_path}-shm"
+        
+        result = {
+            "db_size": os.path.getsize(db_path) if os.path.exists(db_path) else 0,
+            "wal_size": os.path.getsize(wal_path) if os.path.exists(wal_path) else 0,
+            "shm_size": os.path.getsize(shm_path) if os.path.exists(shm_path) else 0,
+        }
+        
+        # Get WAL page count from PRAGMA
+        with db.engine.connect() as conn:
+            wal_info = conn.execute(text("PRAGMA wal_checkpoint;")).fetchone()
+            if wal_info:
+                result["wal_pages"] = wal_info[1] if len(wal_info) > 1 else 0
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error getting WAL status: {e}")
+        return {"error": str(e)}
+
+def _wal_checkpoint_loop():
+    """Background thread that performs periodic WAL checkpoints"""
+    logger.info(f"WAL checkpoint thread started (interval: {WAL_CHECKPOINT_INTERVAL}s)")
+    
+    # Initial delay to let the app start up
+    _wal_checkpoint_stop_event.wait(60)
+    
+    while not _wal_checkpoint_stop_event.is_set():
+        try:
+            with app.app_context():
+                # Check WAL size first
+                wal_status = get_wal_status()
+                wal_size = wal_status.get("wal_size", 0)
+                
+                # Always do at least a PASSIVE checkpoint
+                # Use TRUNCATE if WAL is getting large (> 10MB)
+                if wal_size > 10 * 1024 * 1024:
+                    logger.warning(f"WAL file large ({wal_size / 1024 / 1024:.1f}MB), performing TRUNCATE checkpoint")
+                    perform_wal_checkpoint("TRUNCATE")
+                else:
+                    perform_wal_checkpoint("PASSIVE")
+                    
+        except Exception as e:
+            logger.error(f"WAL checkpoint loop error: {e}")
+        
+        # Wait for next interval or stop signal
+        _wal_checkpoint_stop_event.wait(WAL_CHECKPOINT_INTERVAL)
+    
+    logger.info("WAL checkpoint thread stopped")
+
+def start_wal_checkpoint_thread():
+    """Start the background WAL checkpoint thread"""
+    global _wal_checkpoint_thread
+    if _wal_checkpoint_thread is None or not _wal_checkpoint_thread.is_alive():
+        _wal_checkpoint_stop_event.clear()
+        _wal_checkpoint_thread = threading.Thread(
+            target=_wal_checkpoint_loop, 
+            name="wal-checkpoint", 
+            daemon=True
+        )
+        _wal_checkpoint_thread.start()
+        logger.info("WAL checkpoint thread started")
+
+def stop_wal_checkpoint_thread():
+    """Stop the WAL checkpoint thread and perform final checkpoint"""
+    global _wal_checkpoint_thread
+    _wal_checkpoint_stop_event.set()
+    if _wal_checkpoint_thread and _wal_checkpoint_thread.is_alive():
+        _wal_checkpoint_thread.join(timeout=5)
+    
+    # Perform final TRUNCATE checkpoint on shutdown
+    try:
+        logger.info("Performing final WAL checkpoint on shutdown...")
+        perform_wal_checkpoint("TRUNCATE")
+    except Exception as e:
+        logger.error(f"Final WAL checkpoint failed: {e}")
+
 # Also set initial PRAGMAs for existing connections and initialize worker session
 with app.app_context():
     try:
@@ -3310,7 +3419,23 @@ def health_check():
         except Exception as e:
             health["thread_count"] = f"error: {str(e)}"
         
-        # 7. Check disk space
+        # 7. Check WAL checkpoint thread
+        try:
+            checkpoint_alive = _wal_checkpoint_thread is not None and _wal_checkpoint_thread.is_alive()
+            wal_status = get_wal_status()
+            health["wal_checkpoint"] = {
+                "thread_alive": checkpoint_alive,
+                "wal_size_mb": round(wal_status.get("wal_size", 0) / (1024 * 1024), 2),
+                "db_size_mb": round(wal_status.get("db_size", 0) / (1024 * 1024), 2),
+            }
+            if not checkpoint_alive:
+                health["warnings"].append("WAL checkpoint thread is not running")
+            if wal_status.get("wal_size", 0) > 50 * 1024 * 1024:
+                health["warnings"].append(f"WAL file is large: {wal_status.get('wal_size', 0) / (1024*1024):.1f}MB")
+        except Exception as e:
+            health["wal_checkpoint"] = f"error: {str(e)}"
+        
+        # 8. Check disk space
         try:
             download_path = get_download_path()
             total, used, free = shutil.disk_usage(download_path)
@@ -3324,7 +3449,7 @@ def health_check():
         except Exception as e:
             health["disk"] = f"error: {str(e)}"
         
-        # 8. Check active streamers vs monitored
+        # 9. Check active streamers vs monitored
         try:
             active_streamers = Streamer.query.filter_by(is_active=True).count()
             monitored_count = len(stream_monitor.get_monitoring_status())
@@ -3337,7 +3462,7 @@ def health_check():
         except Exception as e:
             health["streamers"] = f"error: {str(e)}"
         
-        # 9. Force garbage collection
+        # 10. Force garbage collection
         try:
             gc.collect()
         except Exception:
@@ -3434,6 +3559,56 @@ def health_threads():
         "total_threads": len(threads),
         "threads": sorted(threads, key=lambda x: x["name"])
     })
+
+
+@app.route('/api/health/wal')
+def health_wal():
+    """Get WAL file status"""
+    try:
+        wal_status = get_wal_status()
+        
+        # Also check if checkpoint thread is running
+        checkpoint_thread_alive = (
+            _wal_checkpoint_thread is not None and 
+            _wal_checkpoint_thread.is_alive()
+        )
+        
+        return jsonify({
+            "status": "ok",
+            "wal_status": wal_status,
+            "checkpoint_thread_alive": checkpoint_thread_alive,
+            "checkpoint_interval_hours": WAL_CHECKPOINT_INTERVAL / 3600
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route('/api/health/wal/checkpoint', methods=['POST'])
+def health_wal_checkpoint():
+    """Manually trigger a WAL checkpoint"""
+    try:
+        mode = request.json.get("mode", "PASSIVE") if request.is_json else "PASSIVE"
+        
+        # Validate mode
+        valid_modes = ["PASSIVE", "FULL", "TRUNCATE", "RESTART"]
+        if mode.upper() not in valid_modes:
+            return jsonify({
+                "status": "error", 
+                "error": f"Invalid mode. Must be one of: {valid_modes}"
+            }), 400
+        
+        result = perform_wal_checkpoint(mode.upper())
+        
+        # Also get current WAL status after checkpoint
+        wal_status = get_wal_status()
+        
+        return jsonify({
+            "status": "ok" if result.get("success") else "error",
+            "checkpoint_result": result,
+            "wal_status_after": wal_status
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 def convert_ts_to_mp4(input_file, output_file, job):
@@ -3823,6 +3998,9 @@ if __name__ == '__main__':
         template_scheduler_thread.start()
         logger.info("Template scheduler thread started")
     
+    # Start WAL checkpoint thread for database integrity
+    start_wal_checkpoint_thread()
+    
     # Start monitoring for existing active streamers
     try:
         with app.app_context():
@@ -3840,6 +4018,9 @@ if __name__ == '__main__':
     # Add cleanup on shutdown
     def cleanup():
         try:
+            # Stop WAL checkpoint thread and perform final checkpoint first
+            stop_wal_checkpoint_thread()
+            
             recording_manager.shutdown()
             stream_monitor.shutdown()
             logger.info("Cleanup completed on shutdown")
